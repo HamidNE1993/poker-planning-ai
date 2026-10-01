@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 
 @Component({
@@ -8,6 +8,6 @@ import { ActivatedRoute } from '@angular/router';
   <div class="panel empty"><i class="pi pi-sparkles"></i><h2>{{title}}</h2><p>Le design system est installé. Implémente maintenant le cas d'usage métier de cet écran.</p></div>`
 })
 export class PlaceholderComponent {
-  readonly title = this.route.snapshot.data['title'] as string;
-  constructor(private readonly route: ActivatedRoute) {}
+  private readonly route = inject(ActivatedRoute);
+  readonly title = (this.route.snapshot.data['title'] as string) || 'Poker Planning AI';
 }

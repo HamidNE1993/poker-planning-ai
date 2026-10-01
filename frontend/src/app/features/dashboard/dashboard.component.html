@@ -1,44 +1,235 @@
-<div class="hero">
-  <div>
-    <span class="eyebrow">PLANNING POKER AUGMENTÉ PAR L'IA</span>
-    <h1>Bienvenue sur<br><span>Poker Planning AI</span></h1>
-    <p>Estimez plus intelligemment avec votre équipe et un assistant IA qui challenge vos user stories.</p>
-    <div class="actions">
-      <a class="btn primary" routerLink="/sessions"><i class="pi pi-plus"></i> Nouvelle session</a>
-      <a class="btn secondary" routerLink="/planning-poker">Rejoindre une session</a>
+<div class="dashboard-container">
+  <!-- Hero Section -->
+  <section class="hero-banner">
+    <div class="hero-content">
+      <span class="eyebrow">
+        <i class="pi pi-sparkles"></i>
+        ESTIMATION COLLABORATIVE AUGMENTÉE PAR L'IA
+      </span>
+      <h1>
+        Planifiez vos sprints avec <br>
+        <span class="highlight">Poker Planning AI</span>
+      </h1>
+      <p>
+        Optimisez l'engagement de votre équipe et gagnez du temps grâce à l'analyse prédictive, 
+        la détection d'ambiguïté et le consensus assisté en temps réel.
+      </p>
+      <div class="hero-actions">
+        <p-button 
+          label="Nouvelle session" 
+          icon="pi pi-plus" 
+          (onClick)="openCreateSessionDialog()"
+          severity="primary"
+          [rounded]="true">
+        </p-button>
+        <p-button 
+          label="Rejoindre la salle en direct" 
+          icon="pi pi-users" 
+          routerLink="/planning-poker"
+          severity="secondary"
+          [outlined]="true"
+          [rounded]="true">
+        </p-button>
+      </div>
     </div>
-  </div>
-  <div class="hero-art">
-    <div class="ai-orb">AI</div><span class="float-card one">5</span><span class="float-card two">8</span><span class="float-card three">13</span>
-  </div>
-</div>
 
-<div class="feature-grid">
-  <article class="feature-card"><div class="feature-icon purple"><i class="pi pi-users"></i></div><div><strong>Sessions collaboratives</strong><p>Estimez en temps réel avec votre équipe.</p></div></article>
-  <article class="feature-card"><div class="feature-icon blue"><i class="pi pi-sparkles"></i></div><div><strong>Assistant IA</strong><p>Analyse vos user stories et aide à mieux estimer.</p></div></article>
-  <article class="feature-card"><div class="feature-icon orange"><i class="pi pi-chart-line"></i></div><div><strong>Historique & analytics</strong><p>Suivez l'évolution de vos estimations.</p></div></article>
-</div>
+    <div class="hero-visual">
+      <div class="ai-orb-glow"></div>
+      <div class="ai-core">
+        <i class="pi pi-microchip-ai"></i>
+        <span>AI</span>
+      </div>
+      <div class="poker-badge card-1">5</div>
+      <div class="poker-badge card-2">8</div>
+      <div class="poker-badge card-3">13</div>
+    </div>
+  </section>
 
-<div class="dashboard-grid">
-  <article class="panel">
-    <div class="panel-title"><h2>Sessions récentes</h2><a routerLink="/sessions">Voir tout →</a></div>
-    @for (s of sessions; track s.name) {
-      <div class="session-row">
-        <div class="session-avatar">{{s.letter}}</div>
-        <div class="grow"><strong>{{s.name}}</strong><small>{{s.meta}}</small></div>
-        <span class="status" [class.running]="s.status === 'En cours'">{{s.status}}</span>
+  <!-- Metrics Grid -->
+  <section class="metrics-grid">
+    @for (metric of metrics(); track metric.title) {
+      <div class="metric-card">
+        <div class="metric-header">
+          <span class="metric-title">{{ metric.title }}</span>
+          <div class="metric-icon-wrap" [ngClass]="metric.colorClass">
+            <i class="pi" [ngClass]="metric.icon"></i>
+          </div>
+        </div>
+        <div class="metric-value">{{ metric.value }}</div>
+        <div class="metric-footer">
+          <span class="metric-change">
+            <i class="pi pi-arrow-up-right"></i>
+            {{ metric.change }}
+          </span>
+          <span class="metric-desc">• {{ metric.description }}</span>
+        </div>
       </div>
     }
-  </article>
-  <article class="panel">
-    <div class="panel-title"><h2>Statistiques</h2><span class="muted">6 derniers mois</span></div>
-    <div class="stats">
-      <div><b>24</b><small>Sessions</small></div><div><b>127</b><small>User stories</small></div>
-      <div><b>6.4</b><small>Estimation moyenne</small></div><div><b>78%</b><small>Accord avec l'IA</small></div>
-    </div>
-    <div class="chart">
-      @for (h of [35,50,43,65,78,92]; track $index) { <span [style.height.%]="h"></span> }
-    </div>
-    <div class="months"><span>Jan</span><span>Fév</span><span>Mar</span><span>Avr</span><span>Mai</span><span>Juin</span></div>
-  </article>
+  </section>
+
+  <!-- Main Content Grid -->
+  <div class="dashboard-main-grid">
+    <!-- Active & Recent Sessions -->
+    <section class="section-panel">
+      <div class="panel-header">
+        <div class="header-text">
+          <h2>Sessions de Planning</h2>
+          <p>Gérez et rejoignez vos sessions actives ou archivées</p>
+        </div>
+        <p-button 
+          label="Créer" 
+          icon="pi pi-plus" 
+          size="small" 
+          (onClick)="openCreateSessionDialog()"
+          severity="secondary"
+          [outlined]="true">
+        </p-button>
+      </div>
+
+      <div class="sessions-list">
+        @for (session of sessions(); track session.id) {
+          <div class="session-card-item">
+            <div class="session-info">
+              <div class="session-top">
+                <span class="session-name">{{ session.name }}</span>
+                <p-tag 
+                  [value]="session.statusLabel" 
+                  [severity]="session.severity">
+                </p-tag>
+              </div>
+              <div class="session-meta">
+                <span><i class="pi pi-calendar"></i> {{ session.sprint }}</span>
+                <span><i class="pi pi-clock"></i> {{ session.lastActivity }}</span>
+                <span><i class="pi pi-list"></i> {{ session.storyCount }} stories</span>
+              </div>
+            </div>
+
+            <div class="session-progress-wrap">
+              <div class="progress-label">
+                <span>Progression</span>
+                <span>{{ session.completedStories }}/{{ session.storyCount }}</span>
+              </div>
+              <p-progressbar 
+                [value]="session.storyCount > 0 ? (session.completedStories / session.storyCount) * 100 : 0" 
+                [showValue]="false"
+                [style]="{ height: '6px' }">
+              </p-progressbar>
+            </div>
+
+            <div class="session-actions">
+              <p-avatargroup>
+                @for (participant of session.participants; track participant.name) {
+                  <p-avatar 
+                    [label]="participant.name.charAt(0)" 
+                    shape="circle" 
+                    [pTooltip]="participant.name"
+                    tooltipPosition="top"
+                    [style]="{ 'background-color': '#e0e7ff', 'color': '#4338ca', 'font-weight': '600' }">
+                  </p-avatar>
+                }
+              </p-avatargroup>
+
+              <p-button 
+                icon="pi pi-arrow-right" 
+                (onClick)="joinSession(session.id)"
+                [rounded]="true"
+                severity="primary"
+                [text]="true"
+                pTooltip="Accéder à la session"
+                tooltipPosition="top">
+              </p-button>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+
+    <!-- AI Insights & Live Analysis -->
+    <section class="section-panel">
+      <div class="panel-header">
+        <div class="header-text">
+          <h2>Insights de l'IA</h2>
+          <p>Suggestions & détection d'angles morts</p>
+        </div>
+        <p-tag value="En temps réel" severity="info" icon="pi pi-sparkles"></p-tag>
+      </div>
+
+      <div class="ai-insights-list">
+        @for (insight of aiInsights(); track insight.storyTitle) {
+          <div class="insight-card" [ngClass]="insight.type">
+            <div class="insight-header">
+              <span class="insight-title">{{ insight.title }}</span>
+              <span class="insight-time">{{ insight.timeAgo }}</span>
+            </div>
+            <div class="insight-story-badge">
+              <i class="pi pi-bookmark"></i> {{ insight.storyTitle }}
+            </div>
+            <p class="insight-msg">{{ insight.message }}</p>
+            <div class="insight-footer">
+              <span class="confidence-score">
+                <i class="pi pi-shield"></i> Confiance IA: {{ insight.confidence }}%
+              </span>
+              <p-button 
+                label="Examiner" 
+                icon="pi pi-search" 
+                size="small" 
+                [text]="true"
+                routerLink="/planning-poker">
+              </p-button>
+            </div>
+          </div>
+        }
+      </div>
+    </section>
+  </div>
 </div>
+
+<!-- Modal Création de session -->
+<p-dialog 
+  header="Créer une nouvelle session de Planning Poker" 
+  [(visible)]="showNewSessionDialog" 
+  [modal]="true" 
+  [draggable]="false" 
+  [resizable]="false"
+  [style]="{ width: '480px', maxWidth: '95vw' }">
+  
+  <div style="padding-top: 1rem;">
+    <div class="form-field">
+      <label for="sessionName">Nom de la session / Objectif</label>
+      <input 
+        pInputText 
+        id="sessionName" 
+        [(ngModel)]="newSessionName" 
+        placeholder="Ex: Estimation Sprint 13 - Checkout V2" 
+        autofocus 
+      />
+    </div>
+
+    <div class="form-field">
+      <label for="sessionSprint">Sprint / Contexte</label>
+      <input 
+        pInputText 
+        id="sessionSprint" 
+        [(ngModel)]="newSessionSprint" 
+        placeholder="Ex: Sprint 13" 
+      />
+    </div>
+  </div>
+
+  <ng-template #footer>
+    <p-button 
+      label="Annuler" 
+      icon="pi pi-times" 
+      (onClick)="showNewSessionDialog.set(false)" 
+      [text]="true" 
+      severity="secondary">
+    </p-button>
+    <p-button 
+      label="Lancer la session" 
+      icon="pi pi-check" 
+      (onClick)="createSession()" 
+      [disabled]="!newSessionName().trim()"
+      severity="primary">
+    </p-button>
+  </ng-template>
+</p-dialog>
