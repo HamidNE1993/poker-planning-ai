@@ -1,0 +1,32 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "poker-planning-ai-ui": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "src/main.ts",
+            "tsConfig": "tsconfig.app.json",
+            "assets": [{"glob": "**/*", "input": "public"}],
+            "styles": ["node_modules/primeicons/primeicons.css", "src/styles.scss"]
+          }
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {"buildTarget": "poker-planning-ai-ui:build:production"},
+            "development": {"buildTarget": "poker-planning-ai-ui:build:development"}
+          },
+          "defaultConfiguration": "development"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+<div class="hero">
+  <div>
+    <span class="eyebrow">PLANNING POKER AUGMENTÉ PAR L'IA</span>
+    <h1>Bienvenue sur<br><span>Poker Planning AI</span></h1>
+    <p>Estimez plus intelligemment avec votre équipe et un assistant IA qui challenge vos user stories.</p>
+    <div class="actions">
+      <a class="btn primary" routerLink="/sessions"><i class="pi pi-plus"></i> Nouvelle session</a>
+      <a class="btn secondary" routerLink="/planning-poker">Rejoindre une session</a>
+    </div>
+  </div>
+  <div class="hero-art">
+    <div class="ai-orb">AI</div><span class="float-card one">5</span><span class="float-card two">8</span><span class="float-card three">13</span>
+  </div>
+</div>
+
+<div class="feature-grid">
+  <article class="feature-card"><div class="feature-icon purple"><i class="pi pi-users"></i></div><div><strong>Sessions collaboratives</strong><p>Estimez en temps réel avec votre équipe.</p></div></article>
+  <article class="feature-card"><div class="feature-icon blue"><i class="pi pi-sparkles"></i></div><div><strong>Assistant IA</strong><p>Analyse vos user stories et aide à mieux estimer.</p></div></article>
+  <article class="feature-card"><div class="feature-icon orange"><i class="pi pi-chart-line"></i></div><div><strong>Historique & analytics</strong><p>Suivez l'évolution de vos estimations.</p></div></article>
+</div>
+
+<div class="dashboard-grid">
+  <article class="panel">
+    <div class="panel-title"><h2>Sessions récentes</h2><a routerLink="/sessions">Voir tout →</a></div>
+    @for (s of sessions; track s.name) {
+      <div class="session-row">
+        <div class="session-avatar">{{s.letter}}</div>
+        <div class="grow"><strong>{{s.name}}</strong><small>{{s.meta}}</small></div>
+        <span class="status" [class.running]="s.status === 'En cours'">{{s.status}}</span>
+      </div>
+    }
+  </article>
+  <article class="panel">
+    <div class="panel-title"><h2>Statistiques</h2><span class="muted">6 derniers mois</span></div>
+    <div class="stats">
+      <div><b>24</b><small>Sessions</small></div><div><b>127</b><small>User stories</small></div>
+      <div><b>6.4</b><small>Estimation moyenne</small></div><div><b>78%</b><small>Accord avec l'IA</small></div>
+    </div>
+    <div class="chart">
+      @for (h of [35,50,43,65,78,92]; track $index) { <span [style.height.%]="h"></span> }
+    </div>
+    <div class="months"><span>Jan</span><span>Fév</span><span>Mar</span><span>Avr</span><span>Mai</span><span>Juin</span></div>
+  </article>
+</div>

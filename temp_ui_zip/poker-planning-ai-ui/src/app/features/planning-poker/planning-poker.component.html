@@ -1,0 +1,20 @@
+<div class="page-heading"><div><span class="eyebrow">SPRINT 12</span><h1>Application mobile</h1></div><span class="status running">En cours</span></div>
+<div class="poker-grid">
+  <article class="panel story">
+    <span class="story-id">US-12</span><h2>Connexion avec compte Google</h2>
+    <p>En tant qu'utilisateur, je souhaite me connecter avec mon compte Google afin d'accéder rapidement à l'application.</p>
+    <h3>Critères d'acceptation</h3>
+    <ul><li>Bouton « Se connecter avec Google »</li><li>Authentification via OAuth 2.0</li><li>Création automatique du profil</li></ul>
+  </article>
+  <article class="panel ai-panel"><div class="panel-title"><h2>✦ Assistant IA</h2><span class="beta">BETA</span></div>
+    <div class="analysis"><span>Complexité</span><b>Moyenne</b></div><div class="analysis"><span>Risque</span><b>Faible</b></div>
+    <div class="ai-estimate"><small>Estimation indicative</small><strong>5 – 8</strong></div>
+    <h3>Points d'attention</h3><p>OAuth, RGPD, gestion des erreurs et tests multi-navigateurs.</p>
+  </article>
+  <article class="panel participants"><h2>Participants (5)</h2>
+    @for (name of ['Thomas','Marie','Alex','Sophie','Lucas']; track name) { <div class="person"><div class="avatar">{{name[0]}}</div><span>{{name}}</span><i class="pi pi-check-circle"></i></div> }
+  </article>
+</div>
+<div class="panel vote-panel"><h2>Choisissez votre estimation</h2><div class="vote-cards">
+  @for (card of cards; track card) { <button [class.selected]="selected() === card" (click)="selected.set(card)">{{card}}</button> }
+</div></div>

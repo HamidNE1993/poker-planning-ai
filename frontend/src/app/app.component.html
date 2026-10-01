@@ -1,0 +1,28 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" routerLink="/"><span class="brand-mark">♠</span><span>Poker Planning AI</span></a>
+    <nav>
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{exact:true}"><i class="pi pi-home"></i>Accueil</a>
+      <a routerLink="/sessions" routerLinkActive="active"><i class="pi pi-calendar"></i>Sessions</a>
+      <a routerLink="/stories" routerLinkActive="active"><i class="pi pi-file"></i>User Stories</a>
+      <a routerLink="/history" routerLinkActive="active"><i class="pi pi-history"></i>Historique</a>
+      <a routerLink="/analytics" routerLinkActive="active"><i class="pi pi-chart-bar"></i>Analytics</a>
+      <a routerLink="/settings" routerLinkActive="active"><i class="pi pi-cog"></i>Paramètres</a>
+    </nav>
+    <div class="sidebar-user">
+      <div class="avatar">T</div>
+      <div><strong>Thomas</strong><small>Scrum Master</small></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="search"><i class="pi pi-search"></i><input placeholder="Rechercher..." /></div>
+      <button class="icon-button" (click)="toggleTheme()" aria-label="Changer de thème">
+        <i [class]="dark() ? 'pi pi-sun' : 'pi pi-moon'"></i>
+      </button>
+      <div class="avatar">T</div>
+    </header>
+    <section class="page"><router-outlet /></section>
+  </main>
+</div>
