@@ -1,4 +1,4 @@
-import { Component, signal } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -11,39 +11,15 @@ import { ProgressBarModule } from 'primeng/progressbar';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { TooltipModule } from 'primeng/tooltip';
+import { SelectModule } from 'primeng/select';
+import { SessionService } from '../../core/services/session.service';
+import { DashboardService } from '../../core/services/dashboard.service';
+import { DeckType } from '../../core/models/session.model';
 
-export interface RecentSession {
-  id: string;
-  name: string;
-  sprint: string;
-  storyCount: number;
-  completedStories: number;
-  lastActivity: string;
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'PLANNED';
-  statusLabel: string;
-  severity: 'success' | 'info' | 'warn' | 'secondary';
-  participants: { name: string; avatar?: string }[];
-  aiAgreementRate: number;
-}
-
-export interface MetricCard {
-  title: string;
-  value: string;
-  change: string;
-  trend: 'up' | 'down' | 'neutral';
-  icon: string;
-  colorClass: string;
+interface DeckOption {
+  label: string;
+  value: DeckType;
   description: string;
-}
-
-export interface AiInsight {
-  storyTitle: string;
-  sessionName: string;
-  type: 'AMBIGUITY' | 'ESTIMATE_GAP' | 'CONSENSUS_READY';
-  title: string;
-  message: string;
-  timeAgo: string;
-  confidence: number;
 }
 
 @Component({
@@ -61,163 +37,72 @@ export interface AiInsight {
     ProgressBarModule,
     DialogModule,
     InputTextModule,
-    TooltipModule
+    TooltipModule,
+    SelectModule
   ],
   templateUrl: './dashboard.component.html',
   styleUrls: ['./dashboard.component.scss']
 })
 export class DashboardComponent {
-  // Modal de création rapide
-  protected showNewSessionDialog = signal<boolean>(false);
-  protected newSessionName = signal<string>('');
-  protected newSessionSprint = signal<string>('Sprint 13');
+  private readonly router = inject(Router);
+  private readonly sessionService = inject(SessionService);
+  private readonly dashboardService = inject(DashboardService);
 
-  // Métriques globales
-  protected readonly metrics = signal<MetricCard[]>([
-    {
-      title: 'Sessions actives',
-      value: '3',
-      change: '+1 ce matin',
-      trend: 'up',
-      icon: 'pi-bolt',
-      colorClass: 'purple',
-      description: 'Sessions en cours d\'estimation'
-    },
-    {
-      title: 'Stories estimées',
-      value: '148',
-      change: '+24 ce mois',
-      trend: 'up',
-      icon: 'pi-check-circle',
-      colorClass: 'blue',
-      description: 'Stories validées par l\'équipe'
-    },
-    {
-      title: 'Accord moyen avec l\'IA',
-      value: '84%',
-      change: '+6% vs sprint précédent',
-      trend: 'up',
-      icon: 'pi-sparkles',
-      colorClass: 'green',
-      description: 'Convergence des votes équipe & IA'
-    },
-    {
-      title: 'Temps moyen / Story',
-      value: '2.4 min',
-      change: '-30s d\'optimisation',
-      trend: 'up',
-      icon: 'pi-clock',
-      colorClass: 'orange',
-      description: 'Grâce aux pré-analyses d\'ambiguïté'
-    }
-  ]);
+  // Signaux exposés pour le template
+  protected readonly metrics = this.dashboardService.metrics;
+  protected readonly sessions = this.sessionService.sessions;
+  protected readonly aiInsights = this.dashboardService.aiInsights;
 
-  // Sessions récentes
-  protected readonly sessions = signal<RecentSession[]>([
-    {
-      id: 'sess-101',
-      name: 'Refonte Module Facturation & Stripe',
-      sprint: 'Sprint 12 - Core',
-      storyCount: 8,
-      completedStories: 5,
-      lastActivity: 'Il y a 10 min',
-      status: 'IN_PROGRESS',
-      statusLabel: 'En cours',
-      severity: 'success',
-      participants: [
-        { name: 'Sarah M.' },
-        { name: 'Alex K.' },
-        { name: 'Thomas D.' },
-        { name: 'Elena V.' }
-      ],
-      aiAgreementRate: 88
-    },
-    {
-      id: 'sess-102',
-      name: 'Optimisation Performances API REST',
-      sprint: 'Sprint 12 - Backend',
-      storyCount: 6,
-      completedStories: 6,
-      lastActivity: 'Il y a 2 heures',
-      status: 'COMPLETED',
-      statusLabel: 'Terminée',
-      severity: 'info',
-      participants: [
-        { name: 'Sarah M.' },
-        { name: 'Thomas D.' },
-        { name: 'Lucas B.' }
-      ],
-      aiAgreementRate: 92
-    },
-    {
-      id: 'sess-103',
-      name: 'Design System & Accessibilité Mobile',
-      sprint: 'Sprint 13 - Frontend',
-      storyCount: 12,
-      completedStories: 0,
-      lastActivity: 'Créée hier',
-      status: 'PLANNED',
-      statusLabel: 'Planifiée',
-      severity: 'secondary',
-      participants: [
-        { name: 'Elena V.' },
-        { name: 'Alex K.' }
-      ],
-      aiAgreementRate: 0
-    }
-  ]);
+  // Options de deck
+  protected readonly deckOptions: DeckOption[] = [
+    { label: 'Fibonacci Standard', value: 'FIBONACCI', description: '0, 1, 2, 3, 5, 8, 13, 21...' },
+    { label: 'Fibonacci Modifié', value: 'MODIFIED_FIBONACCI', description: '0, 0.5, 1, 2, 3, 5, 8, 13, 20...' },
+    { label: 'T-Shirt Sizes', value: 'T_SHIRT', description: 'XS, S, M, L, XL, XXL' },
+    { label: 'Puissances de 2', value: 'POWERS_OF_TWO', description: '0, 1, 2, 4, 8, 16, 32, 64' }
+  ];
 
-  // Alertes et insights IA
-  protected readonly aiInsights = signal<AiInsight[]>([
-    {
-      storyTitle: 'AUTHENT-42: Authentification Biométrique WebAuthn',
-      sessionName: 'Refonte Module Facturation',
-      type: 'AMBIGUITY',
-      title: 'Critères d\'acceptation incomplets détectés',
-      message: 'L\'IA suggère de préciser la gestion du fallback OTP en cas d\'échec matériel avant l\'estimation finale.',
-      timeAgo: 'Il y a 15 min',
-      confidence: 94
-    },
-    {
-      storyTitle: 'PAY-108: Webhook de réconciliation bancaire asynchrone',
-      sessionName: 'Refonte Module Facturation',
-      type: 'ESTIMATE_GAP',
-      title: 'Écart de complexité détecté',
-      message: 'Dispersion importante des votes (3 vs 13). Risque de dépendance externe identifié sur le fournisseur de paiement.',
-      timeAgo: 'Il y a 35 min',
-      confidence: 89
-    }
-  ]);
-
-  constructor(private readonly router: Router) {}
+  // État du modal de création
+  protected readonly showNewSessionDialog = signal<boolean>(false);
+  protected readonly newSessionName = signal<string>('');
+  protected readonly newSessionSprint = signal<string>('Sprint 13');
+  protected readonly newSessionFacilitator = signal<string>('Scrum Master');
+  protected readonly selectedDeckType = signal<DeckType>('FIBONACCI');
+  protected readonly timerSeconds = signal<number>(60);
+  protected readonly isCreating = signal<boolean>(false);
 
   protected openCreateSessionDialog(): void {
     this.newSessionName.set('');
-    this.newSessionSprint.set('Sprint ' + (Math.floor(Math.random() * 5) + 13));
+    this.newSessionSprint.set(`Sprint ${Math.floor(Math.random() * 5) + 13}`);
+    this.newSessionFacilitator.set('Vous');
+    this.selectedDeckType.set('FIBONACCI');
+    this.timerSeconds.set(60);
     this.showNewSessionDialog.set(true);
   }
 
   protected createSession(): void {
-    if (!this.newSessionName().trim()) return;
+    const name = this.newSessionName().trim();
+    if (!name) {
+      return;
+    }
 
-    const newId = 'sess-' + Date.now().toString().slice(-4);
-    const newSession: RecentSession = {
-      id: newId,
-      name: this.newSessionName().trim(),
+    this.isCreating.set(true);
+    this.sessionService.createSession({
+      name,
       sprint: this.newSessionSprint(),
-      storyCount: 0,
-      completedStories: 0,
-      lastActivity: 'À l\'instant',
-      status: 'IN_PROGRESS',
-      statusLabel: 'En cours',
-      severity: 'success',
-      participants: [{ name: 'Vous' }],
-      aiAgreementRate: 0
-    };
-
-    this.sessions.update(current => [newSession, ...current]);
-    this.showNewSessionDialog.set(false);
-    this.router.navigate(['/planning-poker']);
+      deckType: this.selectedDeckType(),
+      timerDurationSeconds: this.timerSeconds(),
+      facilitatorName: this.newSessionFacilitator().trim() || 'Scrum Master'
+    }).subscribe({
+      next: (created) => {
+        this.isCreating.set(false);
+        this.showNewSessionDialog.set(false);
+        this.router.navigate(['/planning-poker'], { queryParams: { session: created.id } });
+      },
+      error: () => {
+        this.isCreating.set(false);
+        this.showNewSessionDialog.set(false);
+      }
+    });
   }
 
   protected joinSession(sessionId: string): void {

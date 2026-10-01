@@ -1,20 +1,312 @@
-<div class="page-heading"><div><span class="eyebrow">SPRINT 12</span><h1>Application mobile</h1></div><span class="status running">En cours</span></div>
-<div class="poker-grid">
-  <article class="panel story">
-    <span class="story-id">US-12</span><h2>Connexion avec compte Google</h2>
-    <p>En tant qu'utilisateur, je souhaite me connecter avec mon compte Google afin d'accéder rapidement à l'application.</p>
-    <h3>Critères d'acceptation</h3>
-    <ul><li>Bouton « Se connecter avec Google »</li><li>Authentification via OAuth 2.0</li><li>Création automatique du profil</li></ul>
-  </article>
-  <article class="panel ai-panel"><div class="panel-title"><h2>✦ Assistant IA</h2><span class="beta">BETA</span></div>
-    <div class="analysis"><span>Complexité</span><b>Moyenne</b></div><div class="analysis"><span>Risque</span><b>Faible</b></div>
-    <div class="ai-estimate"><small>Estimation indicative</small><strong>5 – 8</strong></div>
-    <h3>Points d'attention</h3><p>OAuth, RGPD, gestion des erreurs et tests multi-navigateurs.</p>
-  </article>
-  <article class="panel participants"><h2>Participants (5)</h2>
-    @for (name of ['Thomas','Marie','Alex','Sophie','Lucas']; track name) { <div class="person"><div class="avatar">{{name[0]}}</div><span>{{name}}</span><i class="pi pi-check-circle"></i></div> }
-  </article>
+<div class="planning-poker-container">
+  <!-- Top Session Header -->
+  <header class="poker-header">
+    <div class="header-left">
+      <a routerLink="/dashboard" class="back-link" pTooltip="Retour au tableau de bord">
+        <i class="pi pi-arrow-left"></i>
+      </a>
+      <div>
+        <div class="session-eyebrow">
+          <span class="sprint-tag">{{ currentSession()?.sprint || 'Sprint 12' }}</span>
+          <span class="deck-tag"><i class="pi pi-clone"></i> {{ currentSession()?.deckType || 'FIBONACCI' }}</span>
+        </div>
+        <h1>{{ currentSession()?.name || 'Session Planning Poker' }}</h1>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <!-- Invite Code Badge -->
+      <div class="invite-code-pill" (click)="copyInviteCode()" pTooltip="Cliquer pour copier le code d'invitation" tooltipPosition="bottom">
+        <span class="label">Code :</span>
+        <strong>{{ currentSession()?.inviteCode || 'CODE' }}</strong>
+        <i [class]="copiedCode() ? 'pi pi-check text-green' : 'pi pi-copy'"></i>
+        @if (copiedCode()) {
+          <span class="copied-toast">Copié !</span>
+        }
+      </div>
+
+      <!-- Live Timer -->
+      <div class="timer-pill" [class.warning]="remainingSeconds() <= 15">
+        <i class="pi pi-clock"></i>
+        <span>{{ remainingSeconds() }}s</span>
+      </div>
+
+      <!-- Session Status Button -->
+      <p-button 
+        [label]="currentSession()?.status === 'IN_PROGRESS' ? 'Clôturer la session' : 'Démarrer l\'estimation'"
+        [icon]="currentSession()?.status === 'IN_PROGRESS' ? 'pi pi-check-circle' : 'pi pi-play'"
+        [severity]="currentSession()?.status === 'IN_PROGRESS' ? 'secondary' : 'success'"
+        [outlined]="currentSession()?.status === 'IN_PROGRESS'"
+        [rounded]="true"
+        (onClick)="toggleSessionStatus()"
+        size="small">
+      </p-button>
+    </div>
+  </header>
+
+  <!-- Poker Grid: Story | AI Assistant | Participants -->
+  <div class="poker-grid">
+    <!-- Active User Story -->
+    <article class="panel story-panel">
+      <div class="story-header">
+        <span class="story-id">US-12</span>
+        <span class="story-priority high"><i class="pi pi-bolt"></i> Priorité Haute</span>
+      </div>
+      <h2>Authentification OAuth 2.0 & WebAuthn</h2>
+      <p class="story-desc">
+        En tant qu'utilisateur de la plateforme, je souhaite me connecter via Google OAuth ou clé biométrique WebAuthn
+        afin d'accéder rapidement et de manière sécurisée à mes sessions de planning.
+      </p>
+
+      <h3>Critères d'acceptation</h3>
+      <ul class="ac-list">
+        <li><i class="pi pi-check text-green"></i> Bouton « Se connecter avec Google » fonctionnel</li>
+        <li><i class="pi pi-check text-green"></i> Support du fallback OTP en cas d'incompatibilité matérielle</li>
+        <li><i class="pi pi-check text-green"></i> Provisioning automatique du profil avec rôle Développeur par défaut</li>
+        <li><i class="pi pi-check text-green"></i> Gestion des sessions révoquées et conformité RGPD</li>
+      </ul>
+    </article>
+
+    <!-- AI Assistant Insights -->
+    <article class="panel ai-panel">
+      <div class="ai-header">
+        <div class="ai-title">
+          <i class="pi pi-sparkles"></i>
+          <h2>Assistant IA</h2>
+        </div>
+        <span class="beta-badge">ADVISORY</span>
+      </div>
+
+      <div class="ai-metrics">
+        <div class="ai-metric-item">
+          <span>Complexité</span>
+          <b class="text-amber">Moyenne</b>
+        </div>
+        <div class="ai-metric-item">
+          <span>Risque technique</span>
+          <b class="text-blue">Faible</b>
+        </div>
+      </div>
+
+      <div class="ai-recommendation">
+        <div class="ai-rec-header">
+          <i class="pi pi-info-circle"></i>
+          <span>Fourchette d'estimation suggérée</span>
+        </div>
+        <div class="ai-range">5 – 8 points</div>
+        <p class="ai-reason">
+          Basé sur l'intégration SDK OAuth standard et la gestion des sessions d'authentification.
+        </p>
+      </div>
+
+      <div class="ai-alert">
+        <i class="pi pi-exclamation-triangle"></i>
+        <span>Vérifier la politique de rotation des tokens de rafraîchissement.</span>
+      </div>
+    </article>
+
+    <!-- Participants & Presence Panel -->
+    <article class="panel participants-panel">
+      <div class="participants-header">
+        <div class="title-with-badge">
+          <h2>Participants</h2>
+          <span class="online-badge">{{ onlineCount() }}/{{ participants().length }} en ligne</span>
+        </div>
+        <p-button 
+          icon="pi pi-user-plus" 
+          [rounded]="true" 
+          [text]="true" 
+          size="small" 
+          pTooltip="Rejoindre ou modifier identité"
+          (onClick)="openJoinDialog()">
+        </p-button>
+      </div>
+
+      <!-- Current User Role Bar -->
+      <div class="my-role-bar">
+        <span>Vous : <strong>{{ currentUserName() }}</strong></span>
+        <div class="role-selector">
+          <button 
+            type="button" 
+            class="role-pill" 
+            [class.active]="currentUserRole() === 'FACILITATOR'"
+            (click)="changeRole('FACILITATOR')">
+            Animateur
+          </button>
+          <button 
+            type="button" 
+            class="role-pill" 
+            [class.active]="currentUserRole() === 'VOTER'"
+            (click)="changeRole('VOTER')">
+            Votant
+          </button>
+          <button 
+            type="button" 
+            class="role-pill" 
+            [class.active]="currentUserRole() === 'OBSERVER'"
+            (click)="changeRole('OBSERVER')">
+            Observateur
+          </button>
+        </div>
+      </div>
+
+      <!-- Participants List -->
+      <div class="participants-list">
+        @for (p of participants(); track p.name) {
+          <div class="participant-row" [class.offline]="!p.online">
+            <div class="participant-identity">
+              <div class="avatar-wrap">
+                <p-avatar 
+                  [label]="p.name.charAt(0)" 
+                  shape="circle" 
+                  [style]="{ 'background-color': '#e0e7ff', 'color': '#4338ca', 'font-weight': '700' }">
+                </p-avatar>
+                <span class="status-dot" [class.online]="p.online"></span>
+              </div>
+              <div class="name-role">
+                <span class="name">{{ p.name }} @if (p.name === currentUserName()) { <small>(Vous)</small> }</span>
+                <span class="role-label">{{ p.role === 'FACILITATOR' ? 'Animateur' : p.role === 'OBSERVER' ? 'Observateur' : 'Votant' }}</span>
+              </div>
+            </div>
+
+            <div class="participant-vote-state">
+              @if (p.role === 'OBSERVER') {
+                <span class="vote-badge observer"><i class="pi pi-eye"></i></span>
+              } @else if (votesRevealed()) {
+                <span class="revealed-vote">{{ p.name === currentUserName() ? (selectedVote() || '-') : (p.currentVote || '5') }}</span>
+              } @else if (p.name === currentUserName() ? (selectedVote() !== null) : p.voted) {
+                <span class="vote-badge ready" pTooltip="A voté"><i class="pi pi-check"></i></span>
+              } @else {
+                <span class="vote-badge thinking" pTooltip="En réflexion"><i class="pi pi-hourglass"></i></span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="participants-footer">
+        <span class="progress-stats">
+          <i class="pi pi-users"></i> {{ votedCount() }}/{{ voterCount() }} votes reçus
+        </span>
+      </div>
+    </article>
+  </div>
+
+  <!-- Interactive Voting Deck Panel -->
+  <section class="panel vote-panel">
+    <div class="vote-panel-header">
+      <div class="vote-title-block">
+        <h2>Choisissez votre estimation</h2>
+        <p>Sélectionnez une carte pour transmettre votre vote à l'aveugle</p>
+      </div>
+
+      <div class="vote-actions">
+        <p-button 
+          [label]="votesRevealed() ? 'Masquer les votes' : 'Révéler les votes'" 
+          [icon]="votesRevealed() ? 'pi pi-eye-slash' : 'pi pi-eye'"
+          (onClick)="toggleRevealVotes()"
+          severity="primary"
+          [rounded]="true">
+        </p-button>
+        <p-button 
+          label="Nouveau tour" 
+          icon="pi pi-refresh" 
+          (onClick)="resetVotes()"
+          severity="secondary"
+          [outlined]="true"
+          [rounded]="true">
+        </p-button>
+      </div>
+    </div>
+
+    <!-- Cards Grid -->
+    <div class="vote-cards-deck">
+      @for (card of deckCards(); track card) {
+        <button 
+          type="button" 
+          class="poker-card" 
+          [class.selected]="selectedVote() === card"
+          [disabled]="currentUserRole() === 'OBSERVER'"
+          (click)="selectCard(card)">
+          <div class="card-inner">
+            <span class="card-corner top">{{ card }}</span>
+            <span class="card-center">{{ card }}</span>
+            <span class="card-corner bottom">{{ card }}</span>
+          </div>
+        </button>
+      }
+    </div>
+
+    <!-- Revealed Summary Consensus Box -->
+    @if (votesRevealed()) {
+      <div class="consensus-box">
+        <div class="consensus-header">
+          <div class="consensus-title">
+            <i class="pi pi-chart-bar"></i>
+            <h3>Résultat du tour & Consensus</h3>
+          </div>
+          <p-tag value="Consensus Atteint (85%)" severity="success" icon="pi pi-check"></p-tag>
+        </div>
+        <div class="consensus-metrics">
+          <div class="c-stat"><span>Moyenne</span><strong>5.2</strong></div>
+          <div class="c-stat"><span>Médiane</span><strong>5</strong></div>
+          <div class="c-stat"><span>Accord IA</span><strong class="text-green">Oui (5-8)</strong></div>
+          <div class="c-stat"><span>Écart min/max</span><strong>3 ��� 8</strong></div>
+        </div>
+      </div>
+    }
+  </section>
 </div>
-<div class="panel vote-panel"><h2>Choisissez votre estimation</h2><div class="vote-cards">
-  @for (card of cards; track card) { <button [class.selected]="selected() === card" (click)="selected.set(card)">{{card}}</button> }
-</div></div>
+
+<!-- Modal Rejoindre la session -->
+<p-dialog 
+  header="Rejoindre la session" 
+  [(visible)]="showJoinDialog" 
+  [modal]="true" 
+  [draggable]="false" 
+  [resizable]="false"
+  [style]="{ width: '420px', maxWidth: '95vw' }">
+  
+  <div style="padding-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
+    <div class="form-field">
+      <label for="joinName">Votre prénom et nom *</label>
+      <input 
+        pInputText 
+        id="joinName" 
+        [(ngModel)]="joinName" 
+        placeholder="Ex: Elena Rostova" 
+        autofocus 
+      />
+    </div>
+
+    <div class="form-field">
+      <label for="joinRole">Rôle dans la session</label>
+      <select 
+        id="joinRole" 
+        class="custom-select" 
+        [ngModel]="joinRole()" 
+        (ngModelChange)="joinRole.set($event)">
+        <option value="VOTER">Développeur / Votant</option>
+        <option value="FACILITATOR">Scrum Master / Animateur</option>
+        <option value="OBSERVER">Observateur / Product Owner</option>
+      </select>
+    </div>
+  </div>
+
+  <ng-template #footer>
+    <p-button 
+      label="Annuler" 
+      icon="pi pi-times" 
+      (onClick)="showJoinDialog.set(false)" 
+      [text]="true" 
+      severity="secondary">
+    </p-button>
+    <p-button 
+      label="Valider" 
+      icon="pi pi-check" 
+      (onClick)="confirmJoin()" 
+      [disabled]="!joinName().trim()"
+      severity="primary">
+    </p-button>
+  </ng-template>
+</p-dialog>

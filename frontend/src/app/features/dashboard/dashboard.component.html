@@ -107,10 +107,10 @@
             <div class="session-progress-wrap">
               <div class="progress-label">
                 <span>Progression</span>
-                <span>{{ session.completedStories }}/{{ session.storyCount }}</span>
+                <span>{{ session.completedStories || 0 }}/{{ session.storyCount || 0 }}</span>
               </div>
               <p-progressbar 
-                [value]="session.storyCount > 0 ? (session.completedStories / session.storyCount) * 100 : 0" 
+                [value]="session.storyCount && session.storyCount > 0 ? ((session.completedStories || 0) / session.storyCount) * 100 : 0" 
                 [showValue]="false"
                 [style]="{ height: '6px' }">
               </p-progressbar>
@@ -191,11 +191,11 @@
   [modal]="true" 
   [draggable]="false" 
   [resizable]="false"
-  [style]="{ width: '480px', maxWidth: '95vw' }">
+  [style]="{ width: '520px', maxWidth: '95vw' }">
   
-  <div style="padding-top: 1rem;">
+  <div style="padding-top: 1rem; display: flex; flex-direction: column; gap: 1rem;">
     <div class="form-field">
-      <label for="sessionName">Nom de la session / Objectif</label>
+      <label for="sessionName">Nom de la session / Objectif *</label>
       <input 
         pInputText 
         id="sessionName" 
@@ -205,13 +205,51 @@
       />
     </div>
 
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div class="form-field">
+        <label for="sessionSprint">Sprint / Contexte</label>
+        <input 
+          pInputText 
+          id="sessionSprint" 
+          [(ngModel)]="newSessionSprint" 
+          placeholder="Ex: Sprint 13" 
+        />
+      </div>
+
+      <div class="form-field">
+        <label for="sessionFacilitator">Votre nom (Animateur) *</label>
+        <input 
+          pInputText 
+          id="sessionFacilitator" 
+          [(ngModel)]="newSessionFacilitator" 
+          placeholder="Ex: Sarah Connor" 
+        />
+      </div>
+    </div>
+
     <div class="form-field">
-      <label for="sessionSprint">Sprint / Contexte</label>
+      <label for="deckType">Système d'évaluation (Deck)</label>
+      <select 
+        id="deckType" 
+        class="custom-select" 
+        [ngModel]="selectedDeckType()" 
+        (ngModelChange)="selectedDeckType.set($event)">
+        @for (opt of deckOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }} ({{ opt.description }})</option>
+        }
+      </select>
+    </div>
+
+    <div class="form-field">
+      <label for="timerSeconds">Minuteur par story (secondes)</label>
       <input 
         pInputText 
-        id="sessionSprint" 
-        [(ngModel)]="newSessionSprint" 
-        placeholder="Ex: Sprint 13" 
+        type="number" 
+        id="timerSeconds" 
+        [ngModel]="timerSeconds()" 
+        (ngModelChange)="timerSeconds.set($event)" 
+        min="15" 
+        max="300" 
       />
     </div>
   </div>
@@ -228,7 +266,8 @@
       label="Lancer la session" 
       icon="pi pi-check" 
       (onClick)="createSession()" 
-      [disabled]="!newSessionName().trim()"
+      [disabled]="!newSessionName().trim() || !newSessionFacilitator().trim() || isCreating()"
+      [loading]="isCreating()"
       severity="primary">
     </p-button>
   </ng-template>

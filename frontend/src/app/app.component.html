@@ -19,7 +19,7 @@
     <header class="topbar">
       <div class="search"><i class="pi pi-search"></i><input placeholder="Rechercher..." /></div>
       <button class="icon-button" (click)="toggleTheme()" aria-label="Changer de thème">
-        <i [class]="dark() ? 'pi pi-sun' : 'pi pi-moon'"></i>
+        <i [class]="isDark() ? 'pi pi-sun' : 'pi pi-moon'"></i>
       </button>
       <div class="avatar">T</div>
     </header>
