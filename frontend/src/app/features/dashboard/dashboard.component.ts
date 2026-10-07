@@ -86,14 +86,16 @@ export class DashboardComponent {
     }
 
     this.isCreating.set(true);
+    const facilitator = this.newSessionFacilitator().trim() || 'Scrum Master';
     this.sessionService.createSession({
       name,
       sprint: this.newSessionSprint(),
       deckType: this.selectedDeckType(),
       timerDurationSeconds: this.timerSeconds(),
-      facilitatorName: this.newSessionFacilitator().trim() || 'Scrum Master'
+      facilitatorName: facilitator
     }).subscribe({
       next: (created) => {
+        sessionStorage.setItem(`poker_user_${created.id}`, facilitator);
         this.isCreating.set(false);
         this.showNewSessionDialog.set(false);
         this.router.navigate(['/planning-poker'], { queryParams: { session: created.id } });

@@ -24,81 +24,7 @@ export class SessionService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = '/api/sessions';
 
-  private readonly _sessions = signal<SessionSummary[]>([
-    {
-      id: 'sess-101',
-      name: 'Refonte Module Facturation & Stripe',
-      sprint: 'Sprint 12 - Core',
-      status: 'IN_PROGRESS',
-      statusLabel: 'En cours',
-      severity: 'success',
-      deckType: 'FIBONACCI',
-      inviteCode: 'FACT12',
-      autoReveal: false,
-      timerDurationSeconds: 60,
-      participantCount: 4,
-      storyCount: 8,
-      completedStories: 5,
-      lastActivity: 'Il y a 10 min',
-      aiAgreementRate: 88,
-      participants: [
-        { name: 'Sarah M.', role: 'FACILITATOR', online: true },
-        { name: 'Alex K.', role: 'VOTER', online: true },
-        { name: 'Thomas D.', role: 'VOTER', online: true },
-        { name: 'Elena V.', role: 'OBSERVER', online: false }
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'sess-102',
-      name: 'Optimisation Performances API REST',
-      sprint: 'Sprint 12 - Backend',
-      status: 'COMPLETED',
-      statusLabel: 'Terminée',
-      severity: 'info',
-      deckType: 'FIBONACCI',
-      inviteCode: 'PERF99',
-      autoReveal: true,
-      timerDurationSeconds: 45,
-      participantCount: 3,
-      storyCount: 6,
-      completedStories: 6,
-      lastActivity: 'Il y a 2 heures',
-      aiAgreementRate: 92,
-      participants: [
-        { name: 'Sarah M.', role: 'FACILITATOR', online: false },
-        { name: 'Thomas D.', role: 'VOTER', online: false },
-        { name: 'Lucas B.', role: 'VOTER', online: false }
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'sess-103',
-      name: 'Design System & Accessibilité Mobile',
-      sprint: 'Sprint 13 - Frontend',
-      status: 'CREATED',
-      statusLabel: 'Planifiée',
-      severity: 'secondary',
-      deckType: 'FIBONACCI',
-      inviteCode: 'DS1300',
-      autoReveal: false,
-      timerDurationSeconds: 60,
-      participantCount: 2,
-      storyCount: 12,
-      completedStories: 0,
-      lastActivity: 'Créée hier',
-      aiAgreementRate: 0,
-      participants: [
-        { name: 'Elena V.', role: 'FACILITATOR', online: true },
-        { name: 'Alex K.', role: 'VOTER', online: true }
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ]);
-
+  private readonly _sessions = signal<SessionSummary[]>([]);
   private readonly _currentSession = signal<PlanningSession | null>(null);
   private readonly _participants = signal<Participant[]>([]);
 
@@ -112,12 +38,13 @@ export class SessionService {
 
   refreshSessions(): void {
     this.http.get<SessionSummary[]>(this.baseUrl).pipe(
-      catchError(() => of(null))
+      catchError(err => {
+        console.warn('Backend non disponible ou erreur réseau pour les sessions:', err);
+        return of([] as SessionSummary[]);
+      })
     ).subscribe(backendSessions => {
-      if (backendSessions && backendSessions.length > 0) {
-        const enriched = backendSessions.map(s => this.enrichSummary(s));
-        this._sessions.set(enriched);
-      }
+      const enriched = (backendSessions || []).map(s => this.enrichSummary(s));
+      this._sessions.set(enriched);
     });
   }
 
@@ -127,28 +54,10 @@ export class SessionService {
         this._currentSession.set(session);
         this._participants.set(session.participants || []);
       }),
-      catchError(() => {
-        // Fallback local mock if not found in backend
-        const summary = this._sessions().find(s => s.id === sessionId);
-        if (summary) {
-          const fallbackSession: PlanningSession = {
-            id: summary.id,
-            name: summary.name,
-            sprint: summary.sprint,
-            status: summary.status,
-            deckType: summary.deckType,
-            deckValues: ['?', '0', '1', '2', '3', '5', '8', '13', '21', '34', '55', '89', '☕'],
-            inviteCode: summary.inviteCode,
-            autoReveal: summary.autoReveal,
-            timerDurationSeconds: summary.timerDurationSeconds,
-            participants: summary.participants || [],
-            createdAt: summary.createdAt,
-            updatedAt: summary.updatedAt
-          };
-          this._currentSession.set(fallbackSession);
-          this._participants.set(fallbackSession.participants);
-          return of(fallbackSession);
-        }
+      catchError(err => {
+        console.error(`Impossible de charger la session ${sessionId} depuis le backend:`, err);
+        this._currentSession.set(null);
+        this._participants.set([]);
         return of(null);
       })
     );
@@ -159,41 +68,11 @@ export class SessionService {
       tap(created => {
         const summary = this.enrichSummary({
           ...created,
-          participantCount: created.participants.length
+          participantCount: created.participants?.length || 1
         });
         this._sessions.update(list => [summary, ...list]);
-      }),
-      catchError(() => {
-        // Fallback local creation
-        const newSession: PlanningSession = {
-          id: `sess-${Date.now().toString().slice(-4)}`,
-          name: dto.name.trim(),
-          sprint: dto.sprint.trim() || 'Sprint 1',
-          status: 'CREATED',
-          deckType: dto.deckType || 'FIBONACCI',
-          deckValues: ['?', '0', '1', '2', '3', '5', '8', '13', '21', '34', '55', '89', '☕'],
-          inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-          autoReveal: dto.autoReveal ?? false,
-          timerDurationSeconds: dto.timerDurationSeconds ?? 60,
-          participants: [
-            {
-              name: dto.facilitatorName || 'Vous',
-              role: 'FACILITATOR',
-              online: true,
-              joinedAt: new Date().toISOString()
-            }
-          ],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        const summary = this.enrichSummary({
-          ...newSession,
-          participantCount: 1
-        });
-
-        this._sessions.update(list => [summary, ...list]);
-        return of(newSession);
+        this._currentSession.set(created);
+        this._participants.set(created.participants || []);
       })
     );
   }
@@ -248,6 +127,34 @@ export class SessionService {
         this._sessions.update(list => list.map(s => s.id === sessionId ? this.enrichSummary({ ...s, status }) : s));
         return of(null);
       })
+    );
+  }
+
+  applySessionUpdate(session: PlanningSession): void {
+    if (this._currentSession()?.id === session.id) {
+      this._currentSession.set(session);
+      if (session.participants) {
+        this._participants.set(session.participants);
+      }
+    }
+    this._sessions.update(list => list.map(s => s.id === session.id ? this.enrichSummary({ ...s, ...session }) : s));
+  }
+
+  applyParticipantUpdate(participant: Participant): void {
+    this._participants.update(list => {
+      const idx = list.findIndex(p => p.id === participant.id || p.name.toLowerCase() === participant.name.toLowerCase());
+      if (idx !== -1) {
+        const copy = [...list];
+        copy[idx] = { ...copy[idx], ...participant };
+        return copy;
+      }
+      return [...list, participant];
+    });
+  }
+
+  applyParticipantLeft(participant: Participant): void {
+    this._participants.update(list =>
+      list.map(p => (p.id === participant.id || p.name.toLowerCase() === participant.name.toLowerCase()) ? { ...p, online: false } : p)
     );
   }
 

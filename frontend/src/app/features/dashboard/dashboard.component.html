@@ -87,7 +87,22 @@
       </div>
 
       <div class="sessions-list">
-        @for (session of sessions(); track session.id) {
+        @if (sessions().length === 0) {
+          <div class="empty-sessions" style="padding: 2.5rem 1rem; text-align: center; color: var(--text-muted); background: var(--card-bg, rgba(255,255,255,0.02)); border: 1px dashed var(--border); border-radius: 0.75rem;">
+            <i class="pi pi-inbox" style="font-size: 2.5rem; margin-bottom: 0.75rem; color: #6366f1; display: block;"></i>
+            <h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: var(--text); font-weight: 600;">Aucune session en cours</h3>
+            <p style="margin: 0 0 1.25rem 0; font-size: 0.9rem;">Créez votre première session pour commencer à estimer avec votre équipe.</p>
+            <p-button 
+              label="Créer une session" 
+              icon="pi pi-plus" 
+              size="small" 
+              (onClick)="openCreateSessionDialog()"
+              severity="primary"
+              [rounded]="true">
+            </p-button>
+          </div>
+        } @else {
+          @for (session of sessions(); track session.id) {
           <div class="session-card-item">
             <div class="session-info">
               <div class="session-top">
@@ -140,6 +155,7 @@
               </p-button>
             </div>
           </div>
+        }
         }
       </div>
     </section>

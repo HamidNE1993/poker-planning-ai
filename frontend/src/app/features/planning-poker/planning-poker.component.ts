@@ -1,17 +1,23 @@
 import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 import { AvatarModule } from 'primeng/avatar';
 import { TooltipModule } from 'primeng/tooltip';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
-import { SelectModule } from 'primeng/select';
+import { TextareaModule } from 'primeng/textarea';
 import { SessionService } from '../../core/services/session.service';
+import { StoryService } from '../../core/services/story.service';
+import { RealtimeService } from '../../core/services/realtime.service';
 import { Participant, ParticipantRole } from '../../core/models/participant.model';
 import { PlanningSession, SessionStatus } from '../../core/models/session.model';
+import { StoryPriority, UserStory } from '../../core/models/story.model';
+import { ConsensusStatistics, VoteDetail } from '../../core/models/vote.model';
+import { SessionEvent } from '../../core/models/realtime.model';
 
 @Component({
   selector: 'app-planning-poker',
@@ -26,7 +32,7 @@ import { PlanningSession, SessionStatus } from '../../core/models/session.model'
     TooltipModule,
     DialogModule,
     InputTextModule,
-    SelectModule
+    TextareaModule
   ],
   templateUrl: './planning-poker.component.html',
   styleUrls: ['./planning-poker.component.scss']
@@ -34,32 +40,59 @@ import { PlanningSession, SessionStatus } from '../../core/models/session.model'
 export class PlanningPokerComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly sessionService = inject(SessionService);
+  private readonly storyService = inject(StoryService);
+  private readonly realtimeService = inject(RealtimeService);
+  private readonly router = inject(Router);
 
-  // Données de session et participants
+  private realtimeSubscription: Subscription | null = null;
+
+  // Real-time status
+  protected readonly isRealtimeConnected = this.realtimeService.isConnected;
+
+  // Session & Participants
   protected readonly currentSession = this.sessionService.currentSession;
   protected readonly participants = this.sessionService.participants;
 
-  // État local de l'utilisateur courant
-  protected readonly currentUserName = signal<string>('Sarah M.');
-  protected readonly currentUserRole = signal<ParticipantRole>('FACILITATOR');
+  // Backlog & Stories
+  protected readonly stories = this.storyService.stories;
+  protected readonly activeStory = this.storyService.activeStory;
+  protected readonly currentVotesResponse = this.storyService.currentVotes;
+
+  // Current User Local State
+  protected readonly currentUserName = signal<string>('');
+  protected readonly currentUserRole = signal<ParticipantRole>('VOTER');
   protected readonly currentParticipantId = signal<string | null>(null);
 
-  // État du vote
+  // Voting State
   protected readonly selectedVote = signal<string | null>(null);
   protected readonly votesRevealed = signal<boolean>(false);
   protected readonly copiedCode = signal<boolean>(false);
+  protected readonly finalEstimateInput = signal<string>('5');
 
-  // Modal Rejoindre la session
-  protected readonly showJoinDialog = signal<boolean>(false);
-  protected readonly joinName = signal<string>('');
-  protected readonly joinRole = signal<ParticipantRole>('VOTER');
+  // Role Computations
+  protected readonly isFacilitator = computed<boolean>(() => this.currentUserRole() === 'FACILITATOR');
+  protected readonly isObserver = computed<boolean>(() => this.currentUserRole() === 'OBSERVER');
+  protected readonly isVoter = computed<boolean>(() => this.currentUserRole() === 'VOTER');
 
-  // Minuteur
+  // Dialogs
+  protected readonly showPseudoDialog = signal<boolean>(false);
+  protected readonly pseudoInput = signal<string>('');
+
+  protected readonly showAddStoryDialog = signal<boolean>(false);
+  protected readonly newStoryTitle = signal<string>('');
+  protected readonly newStoryDesc = signal<string>('');
+  protected readonly newStoryAC = signal<string>('');
+  protected readonly newStoryPriority = signal<StoryPriority>('MEDIUM');
+
+  protected readonly showBacklogDrawer = signal<boolean>(false);
+
+  // Timer & Polling
   protected readonly remainingSeconds = signal<number>(60);
   protected readonly isTimerRunning = signal<boolean>(false);
   private timerInterval: any = null;
+  private pollingInterval: any = null;
 
-  // Calculs dérivés
+  // Derived Computations
   protected readonly deckCards = computed<string[]>(() => {
     const session = this.currentSession();
     if (session && session.deckValues && session.deckValues.length > 0) {
@@ -76,14 +109,44 @@ export class PlanningPokerComponent implements OnInit, OnDestroy {
     return this.participants().filter(p => p.role === 'VOTER' || p.role === 'FACILITATOR').length;
   });
 
+  protected readonly voteDetailsList = computed<VoteDetail[]>(() => {
+    const resp = this.currentVotesResponse();
+    if (resp && resp.votes) {
+      return resp.votes;
+    }
+    // Fallback based on participants signal
+    return this.participants().map(p => ({
+      participantId: p.id || p.name,
+      participantName: p.name,
+      participantRole: p.role,
+      voteValue: p.name === this.currentUserName() ? this.selectedVote() : (p.currentVote || null),
+      hasVoted: p.name === this.currentUserName() ? this.selectedVote() !== null : (p.voted || false)
+    }));
+  });
+
   protected readonly votedCount = computed<number>(() => {
-    return this.participants().filter(p => p.voted || (p.name === this.currentUserName() && this.selectedVote() !== null)).length;
+    return this.voteDetailsList().filter(v => v.hasVoted).length;
+  });
+
+  protected readonly consensusStats = computed<ConsensusStatistics | null>(() => {
+    return this.currentVotesResponse()?.consensus || null;
   });
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
-      const sessionId = params['session'] || 'sess-101';
-      this.loadSessionData(sessionId);
+      let sessionParam = params['session'];
+      if (!sessionParam) {
+        const available = this.sessionService.sessions();
+        if (available.length > 0) {
+          sessionParam = available[0].id;
+        }
+      }
+
+      if (sessionParam) {
+        this.initSession(sessionParam);
+      } else {
+        this.router.navigate(['/']);
+      }
     });
 
     this.startTimer();
@@ -93,21 +156,220 @@ export class PlanningPokerComponent implements OnInit, OnDestroy {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
     }
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+    if (this.realtimeSubscription) {
+      this.realtimeSubscription.unsubscribe();
+      this.realtimeSubscription = null;
+    }
+    this.realtimeService.disconnect();
   }
 
-  private loadSessionData(sessionId: string): void {
-    this.sessionService.loadSession(sessionId).subscribe(session => {
+  private initSession(identifier: string): void {
+    this.sessionService.loadSession(identifier).subscribe(session => {
       if (session) {
+        const realSessionId = session.id;
         this.remainingSeconds.set(session.timerDurationSeconds || 60);
-        // Find if current user is in participants list
-        const existing = session.participants.find(p => p.name === this.currentUserName());
-        if (existing) {
-          this.currentUserRole.set(existing.role);
-          if (existing.id) {
-            this.currentParticipantId.set(existing.id);
+
+        // Check if tab already has a stored pseudo in sessionStorage
+        const storedPseudo = sessionStorage.getItem(`poker_user_${realSessionId}`);
+        if (storedPseudo) {
+          this.currentUserName.set(storedPseudo);
+          const existing = session.participants.find(p => p.name.toLowerCase() === storedPseudo.toLowerCase());
+          if (existing) {
+            this.currentUserRole.set(existing.role);
+            if (existing.id) {
+              this.currentParticipantId.set(existing.id);
+            }
+          } else {
+            this.joinWithPseudo(storedPseudo, realSessionId);
+          }
+        } else {
+          // Open pseudo prompt modal so this tab can pick its own name
+          this.pseudoInput.set('');
+          this.showPseudoDialog.set(true);
+        }
+
+        // Load Stories & Votes with the real UUID
+        this.storyService.loadStories(realSessionId).subscribe(() => {
+          this.loadVotesForActiveStory();
+        });
+
+        // Connect real-time SSE stream
+        this.subscribeToRealtimeEvents(realSessionId);
+
+        // Backup gentle polling (every 10s) to keep presence heartbeat
+        this.startHeartbeatPolling(realSessionId);
+      }
+    });
+  }
+
+  private subscribeToRealtimeEvents(sessionId: string): void {
+    this.realtimeSubscription?.unsubscribe();
+    this.realtimeSubscription = this.realtimeService.connect(sessionId).subscribe({
+      next: (event: SessionEvent) => {
+        this.handleRealtimeEvent(event);
+      },
+      error: (err) => {
+        console.warn('[PlanningPokerComponent] Erreur flux SSE:', err);
+      }
+    });
+  }
+
+  private handleRealtimeEvent(event: SessionEvent): void {
+    if (!event || !event.type) return;
+
+    switch (event.type) {
+      case 'SESSION_UPDATED':
+        if (event.payload) {
+          this.sessionService.applySessionUpdate(event.payload);
+        }
+        break;
+
+      case 'PARTICIPANT_JOINED':
+      case 'PARTICIPANT_UPDATED':
+        if (event.payload) {
+          this.sessionService.applyParticipantUpdate(event.payload);
+          // If this update matches current user, ensure participantId is tracked
+          if (event.payload.name?.toLowerCase() === this.currentUserName().toLowerCase() && event.payload.id) {
+            this.currentParticipantId.set(event.payload.id);
+            this.currentUserRole.set(event.payload.role);
           }
         }
+        break;
+
+      case 'PARTICIPANT_LEFT':
+        if (event.payload) {
+          this.sessionService.applyParticipantLeft(event.payload);
+        }
+        break;
+
+      case 'STORY_CREATED':
+        if (event.payload) {
+          this.storyService.applyStoryCreated(event.payload);
+        }
+        break;
+
+      case 'STORY_UPDATED':
+        if (event.payload) {
+          this.storyService.applyStoryUpdated(event.payload);
+        }
+        break;
+
+      case 'STORY_DELETED':
+        if (event.payload) {
+          this.storyService.applyStoryDeleted(typeof event.payload === 'string' ? event.payload : event.payload.id);
+        }
+        break;
+
+      case 'STORY_SELECTED':
+        if (event.payload) {
+          this.storyService.applyStorySelected(event.payload);
+          this.selectedVote.set(null);
+          this.votesRevealed.set(event.payload.votesRevealed || false);
+          this.remainingSeconds.set(this.currentSession()?.timerDurationSeconds || 60);
+          this.loadVotesForActiveStory();
+        }
+        break;
+
+      case 'VOTE_SUBMITTED':
+        if (event.payload) {
+          this.storyService.applyVotesUpdate(event.payload);
+          if (event.payload.revealed) {
+            this.votesRevealed.set(true);
+            if (event.payload.consensus?.median) {
+              this.finalEstimateInput.set(event.payload.consensus.median);
+            } else if (event.payload.consensus?.average) {
+              this.finalEstimateInput.set(String(event.payload.consensus.average));
+            }
+          }
+        }
+        break;
+
+      case 'VOTES_REVEALED':
+        if (event.payload) {
+          this.storyService.applyVotesUpdate(event.payload);
+          this.votesRevealed.set(true);
+          if (event.payload.consensus?.median) {
+            this.finalEstimateInput.set(event.payload.consensus.median);
+          } else if (event.payload.consensus?.average) {
+            this.finalEstimateInput.set(String(event.payload.consensus.average));
+          }
+        }
+        break;
+
+      case 'VOTES_RESET':
+        if (event.payload) {
+          this.storyService.applyVotesUpdate(event.payload);
+          this.votesRevealed.set(false);
+          this.selectedVote.set(null);
+          this.remainingSeconds.set(this.currentSession()?.timerDurationSeconds || 60);
+        }
+        break;
+
+      case 'ESTIMATE_FINALIZED':
+        if (event.payload) {
+          this.storyService.applyFinalizeEstimate(event.payload);
+          this.votesRevealed.set(true);
+        }
+        break;
+
+      case 'TIMER_SYNC':
+        if (event.payload) {
+          if (event.payload.action === 'START') {
+            this.startTimer();
+          } else if (event.payload.action === 'PAUSE') {
+            this.isTimerRunning.set(false);
+            if (this.timerInterval) clearInterval(this.timerInterval);
+          } else if (event.payload.action === 'RESET') {
+            this.remainingSeconds.set(event.payload.remainingSeconds || 60);
+          }
+        }
+        break;
+    }
+  }
+
+  private startHeartbeatPolling(sessionId: string): void {
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+    }
+    this.pollingInterval = setInterval(() => {
+      this.sessionService.loadSession(sessionId).subscribe(session => {
+        if (session && this.currentUserName()) {
+          const me = session.participants.find(p => p.name.toLowerCase() === this.currentUserName().toLowerCase());
+          if (me && me.id && !this.currentParticipantId()) {
+            this.currentParticipantId.set(me.id);
+          }
+        }
+      });
+    }, 10000);
+  }
+
+  protected confirmPseudo(): void {
+    const pseudo = this.pseudoInput().trim();
+    if (!pseudo) return;
+
+    const session = this.currentSession();
+    if (!session) return;
+
+    this.joinWithPseudo(pseudo, session.id);
+    this.showPseudoDialog.set(false);
+  }
+
+  private joinWithPseudo(pseudo: string, sessionId: string): void {
+    this.currentUserName.set(pseudo);
+    sessionStorage.setItem(`poker_user_${sessionId}`, pseudo);
+
+    this.sessionService.joinSession(sessionId, {
+      name: pseudo,
+      role: 'VOTER'
+    }).subscribe(p => {
+      this.currentUserRole.set(p.role);
+      if (p.id) {
+        this.currentParticipantId.set(p.id);
       }
+      this.loadVotesForActiveStory();
     });
   }
 
@@ -115,21 +377,112 @@ export class PlanningPokerComponent implements OnInit, OnDestroy {
     if (this.currentUserRole() === 'OBSERVER') {
       return;
     }
+
+    const session = this.currentSession();
+    const active = this.activeStory();
+    const participantId = this.currentParticipantId();
+
     if (this.selectedVote() === card) {
       this.selectedVote.set(null);
     } else {
       this.selectedVote.set(card);
+      if (session && active && participantId) {
+        this.storyService.submitVote(session.id, active.id, participantId, card).subscribe(resp => {
+          if (resp) {
+            this.votesRevealed.set(resp.revealed);
+          }
+        });
+      }
     }
   }
 
   protected toggleRevealVotes(): void {
-    this.votesRevealed.update(v => !v);
+    const session = this.currentSession();
+    const active = this.activeStory();
+    if (session && active) {
+      if (!this.votesRevealed()) {
+        this.storyService.revealVotes(session.id, active.id).subscribe(resp => {
+          this.votesRevealed.set(true);
+          if (resp?.consensus?.median) {
+            this.finalEstimateInput.set(resp.consensus.median);
+          } else if (resp?.consensus?.average) {
+            this.finalEstimateInput.set(String(resp.consensus.average));
+          }
+        });
+      } else {
+        this.votesRevealed.set(false);
+      }
+    } else {
+      this.votesRevealed.update(v => !v);
+    }
   }
 
   protected resetVotes(): void {
     this.selectedVote.set(null);
     this.votesRevealed.set(false);
     this.remainingSeconds.set(this.currentSession()?.timerDurationSeconds || 60);
+
+    const session = this.currentSession();
+    const active = this.activeStory();
+    if (session && active) {
+      this.storyService.resetVotes(session.id, active.id).subscribe();
+    }
+  }
+
+  protected finalizeEstimate(): void {
+    const score = this.finalEstimateInput().trim();
+    if (!score) return;
+
+    const session = this.currentSession();
+    const active = this.activeStory();
+    if (session && active) {
+      this.storyService.finalizeEstimate(session.id, active.id, score).subscribe(() => {
+        // Find next pending story if available
+        const next = this.stories().find(s => s.id !== active.id && s.status === 'PENDING');
+        if (next) {
+          this.selectStory(next);
+        }
+      });
+    }
+  }
+
+  protected selectStory(story: UserStory): void {
+    const session = this.currentSession();
+    if (session) {
+      this.storyService.selectActiveStory(session.id, story.id).subscribe(() => {
+        this.selectedVote.set(null);
+        this.votesRevealed.set(false);
+        this.remainingSeconds.set(session.timerDurationSeconds || 60);
+        this.loadVotesForActiveStory();
+      });
+    }
+  }
+
+  protected openAddStoryDialog(): void {
+    this.newStoryTitle.set('');
+    this.newStoryDesc.set('');
+    this.newStoryAC.set('');
+    this.newStoryPriority.set('MEDIUM');
+    this.showAddStoryDialog.set(true);
+  }
+
+  protected confirmAddStory(): void {
+    const title = this.newStoryTitle().trim();
+    if (!title) return;
+
+    const session = this.currentSession();
+    if (!session) return;
+
+    const acList = this.newStoryAC().split('\n').map(s => s.trim()).filter(s => s.length > 0);
+
+    this.storyService.createStory(session.id, {
+      title,
+      description: this.newStoryDesc().trim(),
+      acceptanceCriteria: acList,
+      priority: this.newStoryPriority()
+    }).subscribe(() => {
+      this.showAddStoryDialog.set(false);
+    });
   }
 
   protected changeRole(newRole: ParticipantRole): void {
@@ -144,6 +497,28 @@ export class PlanningPokerComponent implements OnInit, OnDestroy {
     }
   }
 
+  protected simulateTestVoter(): void {
+    const session = this.currentSession();
+    const active = this.activeStory();
+    if (!session) return;
+
+    const testNames = ['Bob (Dev)', 'Charlie (QA)', 'Diana (Frontend)', 'Eric (Backend)', 'Sophie (Lead)'];
+    const available = testNames.find(n => !this.participants().some(p => p.name === n)) || `Testeur ${Date.now().toString().slice(-3)}`;
+
+    this.sessionService.joinSession(session.id, {
+      name: available,
+      role: 'VOTER'
+    }).subscribe(p => {
+      if (p.id && active) {
+        const cards = this.deckCards().filter(c => c !== '?' && c !== '☕');
+        const randomCard = cards[Math.floor(Math.random() * cards.length)];
+        this.storyService.submitVote(session.id, active.id, p.id, randomCard).subscribe(() => {
+          this.loadVotesForActiveStory();
+        });
+      }
+    });
+  }
+
   protected copyInviteCode(): void {
     const code = this.currentSession()?.inviteCode || '';
     if (code) {
@@ -153,38 +528,39 @@ export class PlanningPokerComponent implements OnInit, OnDestroy {
     }
   }
 
-  protected openJoinDialog(): void {
-    this.joinName.set('');
-    this.joinRole.set('VOTER');
-    this.showJoinDialog.set(true);
-  }
-
-  protected confirmJoin(): void {
-    const name = this.joinName().trim();
-    if (!name) return;
-
-    const session = this.currentSession();
-    if (session) {
-      this.sessionService.joinSession(session.id, {
-        name,
-        role: this.joinRole()
-      }).subscribe(p => {
-        this.currentUserName.set(name);
-        this.currentUserRole.set(this.joinRole());
-        if (p.id) {
-          this.currentParticipantId.set(p.id);
-        }
-        this.showJoinDialog.set(false);
-      });
-    }
-  }
-
   protected toggleSessionStatus(): void {
     const session = this.currentSession();
     if (!session) return;
 
     const newStatus: SessionStatus = session.status === 'IN_PROGRESS' ? 'COMPLETED' : 'IN_PROGRESS';
     this.sessionService.updateSessionStatus(session.id, newStatus).subscribe();
+  }
+
+  private loadVotesForActiveStory(): void {
+    const session = this.currentSession();
+    const active = this.activeStory();
+    const participantId = this.currentParticipantId();
+    if (session && active) {
+      this.storyService.getVotes(session.id, active.id, participantId || undefined).subscribe(resp => {
+        if (resp) {
+          this.votesRevealed.set(resp.revealed);
+          if (resp.revealed) {
+            if (resp.consensus?.median) {
+              this.finalEstimateInput.set(resp.consensus.median);
+            } else if (resp.consensus?.average) {
+              this.finalEstimateInput.set(String(resp.consensus.average));
+            }
+          }
+          const myVote = resp.votes?.find(v =>
+            (participantId && v.participantId === participantId) ||
+            (this.currentUserName() && v.participantName?.toLowerCase() === this.currentUserName().toLowerCase())
+          );
+          if (myVote && myVote.voteValue) {
+            this.selectedVote.set(myVote.voteValue);
+          }
+        }
+      });
+    }
   }
 
   private startTimer(): void {

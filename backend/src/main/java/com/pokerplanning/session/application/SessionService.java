@@ -1,5 +1,7 @@
 package com.pokerplanning.session.application;
 
+import com.pokerplanning.collaboration.application.SessionEventPublisher;
+import com.pokerplanning.collaboration.domain.SessionEventType;
 import com.pokerplanning.common.exception.BusinessRuleException;
 import com.pokerplanning.common.exception.ResourceNotFoundException;
 import com.pokerplanning.participant.domain.Participant;
@@ -13,6 +15,8 @@ import com.pokerplanning.session.domain.DeckType;
 import com.pokerplanning.session.domain.PlanningSession;
 import com.pokerplanning.session.domain.SessionStatus;
 import com.pokerplanning.session.infrastructure.SessionRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +26,8 @@ import java.util.UUID;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
+@Slf4j
 public class SessionService {
 
     private static final String INVITE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -29,12 +35,10 @@ public class SessionService {
     private final SecureRandom random = new SecureRandom();
 
     private final SessionRepository sessionRepository;
-
-    public SessionService(SessionRepository sessionRepository) {
-        this.sessionRepository = sessionRepository;
-    }
+    private final SessionEventPublisher sessionEventPublisher;
 
     public SessionResponse createSession(CreateSessionRequest request) {
+        log.info("Création d'une nouvelle session de planning: '{}' (Sprint: {})", request.name(), request.sprint());
         String inviteCode = generateUniqueInviteCode();
         DeckType deckType = request.deckType() != null ? request.deckType() : DeckType.FIBONACCI;
 
@@ -83,8 +87,35 @@ public class SessionService {
     }
 
     @Transactional(readOnly = true)
+    public SessionResponse getSessionByIdOrCode(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new ResourceNotFoundException("Identifiant de session invalide");
+        }
+        String cleaned = identifier.trim();
+        if (cleaned.toUpperCase().startsWith("PKR-")) {
+            cleaned = cleaned.substring(4);
+        }
+
+        try {
+            UUID uuid = UUID.fromString(cleaned);
+            var sessionOpt = sessionRepository.findByIdWithParticipants(uuid);
+            if (sessionOpt.isPresent()) {
+                return SessionResponse.from(sessionOpt.get());
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Pas un UUID valide, recherche par code d'invitation ci-dessous
+        }
+
+        return getSessionByInviteCode(cleaned);
+    }
+
+    @Transactional(readOnly = true)
     public SessionResponse getSessionByInviteCode(String inviteCode) {
-        PlanningSession session = sessionRepository.findByInviteCode(inviteCode.toUpperCase().trim())
+        String code = inviteCode != null ? inviteCode.toUpperCase().trim() : "";
+        if (code.startsWith("PKR-")) {
+            code = code.substring(4);
+        }
+        PlanningSession session = sessionRepository.findByInviteCode(code)
             .orElseThrow(() -> new ResourceNotFoundException("Session introuvable avec le code: " + inviteCode));
 
         return SessionResponse.from(session);
@@ -96,7 +127,9 @@ public class SessionService {
 
         session.setStatus(request.status());
         PlanningSession saved = sessionRepository.save(session);
-        return SessionResponse.from(saved);
+        SessionResponse response = SessionResponse.from(saved);
+        sessionEventPublisher.publish(id, SessionEventType.SESSION_UPDATED, response);
+        return response;
     }
 
     public SessionResponse updateConfig(UUID id, UpdateSessionConfigRequest request) {
@@ -118,7 +151,9 @@ public class SessionService {
         }
 
         PlanningSession saved = sessionRepository.save(session);
-        return SessionResponse.from(saved);
+        SessionResponse response = SessionResponse.from(saved);
+        sessionEventPublisher.publish(id, SessionEventType.SESSION_UPDATED, response);
+        return response;
     }
 
     public void deleteSession(UUID id) {

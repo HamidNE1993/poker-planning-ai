@@ -11,6 +11,8 @@ import java.util.UUID;
 @Repository
 public interface ParticipantRepository extends JpaRepository<Participant, UUID> {
 
+    List<Participant> findBySessionId(UUID sessionId);
+
     List<Participant> findBySessionIdOrderByJoinedAtAsc(UUID sessionId);
 
     Optional<Participant> findByIdAndSessionId(UUID id, UUID sessionId);

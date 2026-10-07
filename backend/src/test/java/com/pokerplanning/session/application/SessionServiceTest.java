@@ -1,5 +1,6 @@
 package com.pokerplanning.session.application;
 
+import com.pokerplanning.collaboration.application.SessionEventPublisher;
 import com.pokerplanning.common.exception.BusinessRuleException;
 import com.pokerplanning.common.exception.ResourceNotFoundException;
 import com.pokerplanning.session.api.dto.CreateSessionRequest;
@@ -33,6 +34,9 @@ class SessionServiceTest {
 
     @Mock
     private SessionRepository sessionRepository;
+
+    @Mock
+    private SessionEventPublisher sessionEventPublisher;
 
     @InjectMocks
     private SessionService sessionService;
@@ -89,6 +93,22 @@ class SessionServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.id()).isEqualTo(sessionId);
         assertThat(response.name()).isEqualTo("Sprint 12 Planning");
+    }
+
+    @Test
+    @DisplayName("Should get session by identifier with invite code or UUID")
+    void shouldGetSessionByIdOrCode() {
+        when(sessionRepository.findByIdWithParticipants(sessionId)).thenReturn(Optional.of(sampleSession));
+        when(sessionRepository.findByInviteCode("ABC123")).thenReturn(Optional.of(sampleSession));
+
+        SessionResponse resByUuid = sessionService.getSessionByIdOrCode(sessionId.toString());
+        assertThat(resByUuid.id()).isEqualTo(sessionId);
+
+        SessionResponse resByCode = sessionService.getSessionByIdOrCode("ABC123");
+        assertThat(resByCode.id()).isEqualTo(sessionId);
+
+        SessionResponse resByPrefixedCode = sessionService.getSessionByIdOrCode("PKR-ABC123");
+        assertThat(resByPrefixedCode.id()).isEqualTo(sessionId);
     }
 
     @Test

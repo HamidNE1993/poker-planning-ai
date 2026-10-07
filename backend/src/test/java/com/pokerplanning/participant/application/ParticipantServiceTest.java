@@ -1,5 +1,6 @@
 package com.pokerplanning.participant.application;
 
+import com.pokerplanning.collaboration.application.SessionEventPublisher;
 import com.pokerplanning.common.exception.ResourceNotFoundException;
 import com.pokerplanning.participant.api.dto.JoinSessionRequest;
 import com.pokerplanning.participant.api.dto.ParticipantResponse;
@@ -34,6 +35,9 @@ class ParticipantServiceTest {
 
     @Mock
     private SessionRepository sessionRepository;
+
+    @Mock
+    private SessionEventPublisher sessionEventPublisher;
 
     @InjectMocks
     private ParticipantService participantService;
