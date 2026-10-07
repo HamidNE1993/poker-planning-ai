@@ -36,11 +36,11 @@ mvn clean verify
 
 ## Production avec PostgreSQL
 
-Activer le profil `prod` et fournir :
+Activer le profil `prod` (ex: `SPRING_PROFILES_ACTIVE=prod`).
 
-- `DB_URL`
-- `DB_USERNAME`
-- `DB_PASSWORD`
+Le backend détecte automatiquement :
+- L'URL standard Railway / Heroku (`DATABASE_URL`, `POSTGRES_URL`)
+- Ou les variables classiques : `DB_URL` (ou `PGHOST`, `PGPORT`, `PGDATABASE`), `DB_USERNAME`, `DB_PASSWORD`.
 
 Exemple :
 
@@ -48,6 +48,18 @@ Exemple :
 java -jar backend/target/backend-0.0.1-SNAPSHOT.jar --spring.profiles.active=prod
 ```
 
-## Docker
+## Déploiement Cloud (Railway)
 
-Les fichiers Docker/Compose sont conservés pour CI/CD ou une autre machine. Ils ne sont pas nécessaires pour le développement local.
+Un guide complet de mise en production pas à pas sur Railway est disponible dans [RAILWAY_DEPLOY.md](RAILWAY_DEPLOY.md).
+
+- **Backend** : `backend/Dockerfile` + `backend/railway.toml` (Healthcheck sur `/actuator/health`).
+- **Frontend** : `frontend/Dockerfile` + `frontend/railway.toml` + Nginx avec reverse-proxy et support SSE.
+- **Base de données** : PostgreSQL managé Railway provisionné en 1 clic.
+
+## Docker & Docker Compose
+
+Pour exécuter la stack complète (PostgreSQL 18 + Backend + Frontend) en local :
+
+```bash
+docker compose up --build
+```

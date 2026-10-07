@@ -1,9 +1,16 @@
 spring:
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:${DB_URL:${JDBC_DATABASE_URL:jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:poker_planning}?sslmode=${PGSSLMODE:prefer}}}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USERNAME:${PGUSER:poker}}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:${PGPASSWORD:poker}}}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+      connection-timeout: 30000
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
