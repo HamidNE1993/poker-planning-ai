@@ -110,6 +110,7 @@ class ParticipantServiceTest {
         participant.setId(participantId);
 
         when(participantRepository.findByIdAndSessionId(participantId, sessionId)).thenReturn(Optional.of(participant));
+        when(participantRepository.save(any(Participant.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         participantService.leaveSession(sessionId, participantId);
 

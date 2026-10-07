@@ -92,4 +92,71 @@ public class UserStory {
     protected void onUpdate() {
         this.updatedAt = Instant.now();
     }
+
+    public void startVoting() {
+        this.status = StoryStatus.VOTING;
+        this.votesRevealed = false;
+    }
+
+    public void resetToPending() {
+        if (this.status != StoryStatus.ESTIMATED) {
+            this.status = StoryStatus.PENDING;
+        }
+        this.votesRevealed = false;
+    }
+
+    public void revealVotes() {
+        this.votesRevealed = true;
+    }
+
+    public void hideVotes() {
+        this.votesRevealed = false;
+    }
+
+    public void finalizeEstimate(String estimate) {
+        if (estimate == null || estimate.isBlank()) {
+            throw new IllegalArgumentException("L'estimation finale ne peut pas être vide.");
+        }
+        this.finalEstimate = estimate.trim();
+        this.status = StoryStatus.ESTIMATED;
+        this.votesRevealed = true;
+    }
+
+    public boolean isVoting() {
+        return this.status == StoryStatus.VOTING;
+    }
+
+    public boolean isEstimated() {
+        return this.status == StoryStatus.ESTIMATED;
+    }
+
+    public void updateDetails(
+        String newStoryKey,
+        String newTitle,
+        String newDescription,
+        List<String> newAcceptanceCriteria,
+        StoryPriority newPriority,
+        StoryStatus newStatus,
+        String newFinalEstimate
+    ) {
+        if (newStoryKey != null && !newStoryKey.isBlank()) {
+            this.storyKey = newStoryKey.trim();
+        }
+        if (newTitle != null && !newTitle.isBlank()) {
+            this.title = newTitle.trim();
+        }
+        this.description = newDescription;
+        if (newAcceptanceCriteria != null) {
+            this.acceptanceCriteria = new ArrayList<>(newAcceptanceCriteria);
+        }
+        if (newPriority != null) {
+            this.priority = newPriority;
+        }
+        if (newStatus != null) {
+            this.status = newStatus;
+        }
+        if (newFinalEstimate != null) {
+            this.finalEstimate = newFinalEstimate.trim();
+        }
+    }
 }

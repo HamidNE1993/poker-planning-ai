@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -13,11 +13,13 @@ import { TextareaModule } from 'primeng/textarea';
 import { SessionService } from '../../core/services/session.service';
 import { StoryService } from '../../core/services/story.service';
 import { RealtimeService } from '../../core/services/realtime.service';
+import { AiAssistantService } from '../../core/services/ai-assistant.service';
 import { Participant, ParticipantRole } from '../../core/models/participant.model';
 import { PlanningSession, SessionStatus } from '../../core/models/session.model';
 import { StoryPriority, UserStory } from '../../core/models/story.model';
 import { ConsensusStatistics, VoteDetail } from '../../core/models/vote.model';
 import { SessionEvent } from '../../core/models/realtime.model';
+import { StoryAnalysis } from '../../core/models/ai-analysis.model';
 
 @Component({
   selector: 'app-planning-poker',
@@ -42,12 +44,19 @@ export class PlanningPokerComponent implements OnInit, OnDestroy {
   private readonly sessionService = inject(SessionService);
   private readonly storyService = inject(StoryService);
   private readonly realtimeService = inject(RealtimeService);
+  private readonly aiAssistantService = inject(AiAssistantService);
   private readonly router = inject(Router);
 
   private realtimeSubscription: Subscription | null = null;
 
   // Real-time status
   protected readonly isRealtimeConnected = this.realtimeService.isConnected;
+
+  // AI Assistant State
+  protected readonly aiAnalysis = this.aiAssistantService.currentAnalysis;
+  protected readonly isAiLoading = this.aiAssistantService.isLoading;
+  protected readonly aiError = this.aiAssistantService.error;
+  protected readonly copiedQuestion = signal<string | null>(null);
 
   // Session & Participants
   protected readonly currentSession = this.sessionService.currentSession;
@@ -131,6 +140,17 @@ export class PlanningPokerComponent implements OnInit, OnDestroy {
   protected readonly consensusStats = computed<ConsensusStatistics | null>(() => {
     return this.currentVotesResponse()?.consensus || null;
   });
+
+  constructor() {
+    effect(() => {
+      const active = this.activeStory();
+      if (active) {
+        this.loadAiAnalysisForActiveStory();
+      } else {
+        this.aiAssistantService.clearCurrentAnalysis();
+      }
+    });
+  }
 
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
@@ -534,6 +554,33 @@ export class PlanningPokerComponent implements OnInit, OnDestroy {
 
     const newStatus: SessionStatus = session.status === 'IN_PROGRESS' ? 'COMPLETED' : 'IN_PROGRESS';
     this.sessionService.updateSessionStatus(session.id, newStatus).subscribe();
+  }
+
+  protected loadAiAnalysisForActiveStory(forceRefresh: boolean = false): void {
+    const active = this.activeStory();
+    if (active) {
+      this.aiAssistantService.getStoryAnalysis(active.id, forceRefresh).subscribe({
+        error: (err) => console.warn('[AiAssistant] Erreur lors de la récupération de l\'analyse:', err)
+      });
+    } else {
+      this.aiAssistantService.clearCurrentAnalysis();
+    }
+  }
+
+  protected refreshAiAnalysis(): void {
+    this.loadAiAnalysisForActiveStory(true);
+  }
+
+  protected copyQuestionToClipboard(question: string): void {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(question);
+      this.copiedQuestion.set(question);
+      setTimeout(() => {
+        if (this.copiedQuestion() === question) {
+          this.copiedQuestion.set(null);
+        }
+      }, 2000);
+    }
   }
 
   private loadVotesForActiveStory(): void {

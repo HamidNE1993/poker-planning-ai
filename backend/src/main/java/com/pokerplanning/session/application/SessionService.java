@@ -125,7 +125,7 @@ public class SessionService {
         PlanningSession session = sessionRepository.findByIdWithParticipants(id)
             .orElseThrow(() -> new ResourceNotFoundException("Session introuvable avec l'identifiant: " + id));
 
-        session.setStatus(request.status());
+        session.changeStatus(request.status());
         PlanningSession saved = sessionRepository.save(session);
         SessionResponse response = SessionResponse.from(saved);
         sessionEventPublisher.publish(id, SessionEventType.SESSION_UPDATED, response);
@@ -136,18 +136,10 @@ public class SessionService {
         PlanningSession session = sessionRepository.findByIdWithParticipants(id)
             .orElseThrow(() -> new ResourceNotFoundException("Session introuvable avec l'identifiant: " + id));
 
-        if (session.getStatus() == SessionStatus.COMPLETED) {
-            throw new BusinessRuleException("Impossible de modifier la configuration d'une session terminée.");
-        }
-
-        if (request.deckType() != null) {
-            session.setDeckType(request.deckType());
-        }
-        if (request.autoReveal() != null) {
-            session.setAutoReveal(request.autoReveal());
-        }
-        if (request.timerDurationSeconds() != null) {
-            session.setTimerDurationSeconds(request.timerDurationSeconds());
+        try {
+            session.updateConfiguration(request.deckType(), request.autoReveal(), request.timerDurationSeconds());
+        } catch (IllegalStateException e) {
+            throw new BusinessRuleException(e.getMessage());
         }
 
         PlanningSession saved = sessionRepository.save(session);

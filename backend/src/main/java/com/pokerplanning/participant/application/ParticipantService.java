@@ -75,7 +75,7 @@ public class ParticipantService {
         Participant participant = participantRepository.findByIdAndSessionId(participantId, sessionId)
             .orElseThrow(() -> new ResourceNotFoundException("Participant introuvable dans cette session."));
 
-        participant.setRole(request.role());
+        participant.changeRole(request.role());
         Participant saved = participantRepository.save(participant);
         ParticipantResponse response = ParticipantResponse.from(saved);
         sessionEventPublisher.publish(sessionId, SessionEventType.PARTICIPANT_UPDATED, response);
@@ -95,7 +95,7 @@ public class ParticipantService {
         Participant participant = participantRepository.findByIdAndSessionId(participantId, sessionId)
             .orElseThrow(() -> new ResourceNotFoundException("Participant introuvable dans cette session."));
 
-        participant.setOnline(false);
+        participant.markOffline();
         Participant saved = participantRepository.save(participant);
         sessionEventPublisher.publish(sessionId, SessionEventType.PARTICIPANT_LEFT, ParticipantResponse.from(saved));
     }

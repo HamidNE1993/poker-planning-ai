@@ -1,5 +1,7 @@
 package com.pokerplanning.estimation.api.dto;
 
+import com.pokerplanning.estimation.domain.ConsensusStatistics;
+
 import java.util.List;
 import java.util.UUID;
 

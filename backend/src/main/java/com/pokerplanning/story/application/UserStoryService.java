@@ -66,7 +66,7 @@ public class UserStoryService {
 
         // If it's the very first story, mark it as VOTING by default
         if (count == 0) {
-            story.setStatus(StoryStatus.VOTING);
+            story.startVoting();
         }
 
         UserStory saved = userStoryRepository.save(story);
@@ -78,23 +78,15 @@ public class UserStoryService {
     public StoryResponse updateStory(UUID sessionId, UUID storyId, UpdateStoryRequest request) {
         UserStory story = findStoryOrThrow(sessionId, storyId);
 
-        if (request.storyKey() != null && !request.storyKey().isBlank()) {
-            story.setStoryKey(request.storyKey());
-        }
-        story.setTitle(request.title());
-        story.setDescription(request.description());
-        if (request.acceptanceCriteria() != null) {
-            story.setAcceptanceCriteria(request.acceptanceCriteria());
-        }
-        if (request.priority() != null) {
-            story.setPriority(request.priority());
-        }
-        if (request.status() != null) {
-            story.setStatus(request.status());
-        }
-        if (request.finalEstimate() != null) {
-            story.setFinalEstimate(request.finalEstimate());
-        }
+        story.updateDetails(
+            request.storyKey(),
+            request.title(),
+            request.description(),
+            request.acceptanceCriteria(),
+            request.priority(),
+            request.status(),
+            request.finalEstimate()
+        );
 
         StoryResponse response = StoryResponse.fromEntity(story);
         sessionEventPublisher.publish(sessionId, SessionEventType.STORY_UPDATED, response);
@@ -115,11 +107,11 @@ public class UserStoryService {
 
         for (UserStory s : stories) {
             if (s.getId().equals(storyId)) {
-                s.setStatus(StoryStatus.VOTING);
+                s.startVoting();
                 targetStory = s;
-            } else if (s.getStatus() == StoryStatus.VOTING) {
+            } else if (s.isVoting()) {
                 // If it was voting but not completed, revert to pending
-                s.setStatus(StoryStatus.PENDING);
+                s.resetToPending();
             }
         }
 

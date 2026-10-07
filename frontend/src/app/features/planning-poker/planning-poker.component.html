@@ -180,35 +180,139 @@
           <i class="pi pi-sparkles"></i>
           <h2>Assistant IA</h2>
         </div>
-        <span class="beta-badge">ADVISORY</span>
+        <div class="ai-header-actions">
+          <span class="beta-badge" pTooltip="Estimation et suggestions consultatives" tooltipPosition="left">CONSEIL IA</span>
+          @if (activeStory()) {
+            <button 
+              type="button" 
+              class="ai-refresh-btn" 
+              (click)="refreshAiAnalysis()" 
+              [disabled]="isAiLoading()" 
+              pTooltip="Recalculer l'analyse" 
+              tooltipPosition="left">
+              <i class="pi pi-refresh" [class.pi-spin]="isAiLoading()"></i>
+            </button>
+          }
+        </div>
       </div>
 
-      <div class="ai-metrics">
-        <div class="ai-metric-item">
-          <span>Complexité</span>
-          <b class="text-amber">Moyenne</b>
+      @if (isAiLoading()) {
+        <div class="ai-loading-state">
+          <div class="ai-skeleton-header">
+            <div class="skeleton-pill"></div>
+            <div class="skeleton-pill"></div>
+          </div>
+          <div class="skeleton-box"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+          <span class="ai-loading-text"><i class="pi pi-spin pi-spinner"></i> Analyse de la story en cours...</span>
         </div>
-        <div class="ai-metric-item">
-          <span>Risque technique</span>
-          <b class="text-blue">Faible</b>
+      } @else if (!activeStory()) {
+        <div class="ai-empty-state">
+          <i class="pi pi-sparkles"></i>
+          <p>Sélectionnez une user story dans le backlog pour afficher l'analyse IA et les suggestions d'estimation.</p>
         </div>
-      </div>
+      } @else if (aiAnalysis(); as analysis) {
+        <!-- Clarity Score -->
+        <div class="ai-clarity-card" [class.clarity-high]="analysis.clarityScore >= 75" [class.clarity-med]="analysis.clarityScore >= 50 && analysis.clarityScore < 75" [class.clarity-low]="analysis.clarityScore < 50">
+          <div class="clarity-label">
+            <span>Score de clarté de la story</span>
+            <span class="clarity-score-val">{{ analysis.clarityScore }} / 100</span>
+          </div>
+          <div class="clarity-bar-bg">
+            <div class="clarity-bar-fill" [style.width.%]="analysis.clarityScore"></div>
+          </div>
+        </div>
 
-      <div class="ai-recommendation">
-        <div class="ai-rec-header">
-          <i class="pi pi-info-circle"></i>
-          <span>Fourchette d'estimation suggérée</span>
+        <!-- Metrics Grid -->
+        <div class="ai-metrics">
+          <div class="ai-metric-item">
+            <span>Complexité</span>
+            @switch (analysis.complexity) {
+              @case ('LOW') { <b class="badge-tag tag-green"><i class="pi pi-check"></i> Faible</b> }
+              @case ('MEDIUM') { <b class="badge-tag tag-blue"><i class="pi pi-info-circle"></i> Moyenne</b> }
+              @case ('HIGH') { <b class="badge-tag tag-amber"><i class="pi pi-exclamation-circle"></i> Élevée</b> }
+              @case ('VERY_HIGH') { <b class="badge-tag tag-red"><i class="pi pi-bolt"></i> Très élevée</b> }
+            }
+          </div>
+          <div class="ai-metric-item">
+            <span>Risque technique</span>
+            @switch (analysis.riskLevel) {
+              @case ('LOW') { <b class="badge-tag tag-green"><i class="pi pi-shield"></i> Faible</b> }
+              @case ('MEDIUM') { <b class="badge-tag tag-amber"><i class="pi pi-exclamation-triangle"></i> Moyen</b> }
+              @case ('HIGH') { <b class="badge-tag tag-red"><i class="pi pi-times-circle"></i> Élevé</b> }
+            }
+          </div>
         </div>
-        <div class="ai-range">3 – 5 points</div>
-        <p class="ai-reason">
-          Basé sur les critères d'acceptation et la décomposition de la tâche technique.
-        </p>
-      </div>
 
-      <div class="ai-alert">
-        <i class="pi pi-lightbulb"></i>
-        <span>Vérifier la compatibilité des navigateurs et la gestion des cas d'erreur.</span>
-      </div>
+        <!-- Advisory Recommendation -->
+        <div class="ai-recommendation">
+          <div class="ai-rec-header">
+            <i class="pi pi-compass"></i>
+            <span>Fourchette d'estimation suggérée</span>
+          </div>
+          <div class="ai-range">{{ analysis.suggestedEstimateRange }} <span class="range-unit">pts</span></div>
+          <p class="ai-reason">
+            {{ analysis.estimateRationale }}
+          </p>
+        </div>
+
+        <!-- Detected Risk Factors -->
+        @if (analysis.detectedRiskFactors.length > 0) {
+          <div class="ai-section">
+            <h4 class="ai-section-title"><i class="pi pi-shield text-amber"></i> Facteurs de risque identifiés</h4>
+            <div class="ai-risk-tags">
+              @for (risk of analysis.detectedRiskFactors; track risk) {
+                <span class="risk-pill"><i class="pi pi-tag"></i> {{ risk }}</span>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Missing Acceptance Criteria Alerts -->
+        @if (analysis.missingAcceptanceCriteriaAlerts.length > 0) {
+          <div class="ai-alerts-list">
+            @for (alert of analysis.missingAcceptanceCriteriaAlerts; track alert) {
+              <div class="ai-alert warning">
+                <i class="pi pi-exclamation-triangle"></i>
+                <span>{{ alert }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Suggested Clarification Questions -->
+        @if (analysis.clarificationQuestions.length > 0) {
+          <div class="ai-section questions-section">
+            <h4 class="ai-section-title"><i class="pi pi-comments text-primary"></i> Questions de cadrage suggérées</h4>
+            <ul class="clarification-list">
+              @for (q of analysis.clarificationQuestions; track q.question) {
+                <li class="clarification-item">
+                  <div class="q-content">
+                    <span class="q-cat">{{ q.category }}</span>
+                    <p class="q-text">{{ q.question }}</p>
+                  </div>
+                  <button 
+                    type="button" 
+                    class="q-copy-btn" 
+                    [class.copied]="copiedQuestion() === q.question"
+                    (click)="copyQuestionToClipboard(q.question)" 
+                    [pTooltip]="copiedQuestion() === q.question ? 'Copié !' : 'Copier la question'"
+                    tooltipPosition="left">
+                    <i [class]="copiedQuestion() === q.question ? 'pi pi-check text-green' : 'pi pi-copy'"></i>
+                  </button>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+      } @else if (aiError()) {
+        <div class="ai-error-box">
+          <i class="pi pi-exclamation-circle"></i>
+          <p>{{ aiError() }}</p>
+          <button type="button" class="retry-btn" (click)="refreshAiAnalysis()">Réessayer</button>
+        </div>
+      }
     </article>
 
     <!-- Participants & Presence Panel -->

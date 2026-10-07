@@ -62,4 +62,27 @@ public class Participant {
         this.lastHeartbeatAt = Instant.now();
         this.online = true;
     }
+
+    public void markOffline() {
+        this.online = false;
+        this.lastHeartbeatAt = Instant.now();
+    }
+
+    public void changeRole(ParticipantRole newRole) {
+        if (newRole != null) {
+            this.role = newRole;
+        }
+    }
+
+    public boolean canVote() {
+        return this.role != ParticipantRole.OBSERVER;
+    }
+
+    public boolean isFacilitator() {
+        return this.role == ParticipantRole.FACILITATOR;
+    }
+
+    public boolean isObserver() {
+        return this.role == ParticipantRole.OBSERVER;
+    }
 }

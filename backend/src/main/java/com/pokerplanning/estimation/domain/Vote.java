@@ -45,4 +45,12 @@ public class Vote {
         this.voteValue = voteValue;
         this.votedAt = Instant.now();
     }
+
+    public void changeVote(String newVoteValue) {
+        if (newVoteValue == null || newVoteValue.isBlank()) {
+            throw new IllegalArgumentException("La valeur du vote ne peut pas être vide.");
+        }
+        this.voteValue = newVoteValue.trim();
+        this.votedAt = Instant.now();
+    }
 }

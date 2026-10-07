@@ -78,6 +78,31 @@ public class PlanningSession {
         this.updatedAt = Instant.now();
     }
 
+    public boolean isCompleted() {
+        return this.status == SessionStatus.COMPLETED;
+    }
+
+    public void updateConfiguration(DeckType deckType, Boolean autoReveal, Integer timerDurationSeconds) {
+        if (isCompleted()) {
+            throw new IllegalStateException("Impossible de modifier la configuration d'une session terminée.");
+        }
+        if (deckType != null) {
+            this.deckType = deckType;
+        }
+        if (autoReveal != null) {
+            this.autoReveal = autoReveal;
+        }
+        if (timerDurationSeconds != null) {
+            this.timerDurationSeconds = timerDurationSeconds;
+        }
+    }
+
+    public void changeStatus(SessionStatus newStatus) {
+        if (newStatus != null) {
+            this.status = newStatus;
+        }
+    }
+
     public void addParticipant(Participant participant) {
         if (this.participants == null) {
             this.participants = new ArrayList<>();
