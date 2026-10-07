@@ -2,10 +2,6 @@
 
 Monorepo Maven : Java 25 / Spring Boot 4.1.1 + Angular 22.2.
 
-## Développement sur le PC d’entreprise (sans Docker)
-
-Le profil `local` est actif par défaut et utilise une base H2 persistante. Aucune installation PostgreSQL ou Docker n’est nécessaire.
-
 ### Backend
 
 ```bash
